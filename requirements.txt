@@ -1,0 +1,4 @@
+tensorflow
+keras
+keras-transformer
+tensor2tensor
