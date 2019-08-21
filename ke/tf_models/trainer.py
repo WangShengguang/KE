@@ -4,9 +4,9 @@ import tensorflow as tf
 
 from ke.config import Config
 from ke.data_helper import DataHelper
-from ke.evaluate.metrics import calcu_metrics
-from ke.tf_models.model_utils import session_conf
+from ke.tf_models.evaluator import get_metrics
 from ke.tf_models.models import ConvKB
+from .model_utils.conf import session_conf
 
 
 class Trainer(object):
@@ -60,15 +60,3 @@ class Trainer(object):
                 # accuracy, precision, recall, f1 = get_metrics(prediction, y_batch)
                 # logging.info("accuracy:{:.6f}, precision:{:.6f}, recall:{:.6f}, f1:{:.6f}".format(
                 #     accuracy, precision, recall, f1))
-
-
-def get_metrics(prediction, y_batch):
-    prediction[prediction >= 0.5] = 1
-    prediction[prediction < 0.5] = 0
-    prediction = prediction.astype(int)
-    accuracy, precision, recall, f1 = calcu_metrics(y_batch, prediction, all_labels=(0, 1), mode="macro")
-    return accuracy, precision, recall, f1
-
-
-def train(model_name, data_set):
-    Trainer(model_name, data_set).run()

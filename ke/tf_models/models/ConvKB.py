@@ -2,7 +2,7 @@ import math
 
 import tensorflow as tf
 
-from ..base_model import Model
+from ._model import Model
 
 
 class ConvKB(Model):

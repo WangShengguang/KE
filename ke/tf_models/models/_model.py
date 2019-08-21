@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from .model_utils import Saver
+from ke.tf_models.model_utils.saver import Saver
 
 
 class Model(object):

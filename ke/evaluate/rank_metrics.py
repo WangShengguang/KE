@@ -12,7 +12,7 @@ class RankMetrics(object):
           Mean Reciprocal Rank
         example:
             (h,r,t) , t is unknown
-                    预测之，预测结果出现的位置，越靠前越好 (1/5+1/6+1/20)/3 = 0.138888...
+                    预测之，预测结果出现的位置的倒数，越靠前越好 (1/5+1/6+1/20)/3 = 0.138888...
         :type pred_ids: list , sorted by score desc
         :type y_id: int , sorted by score desc
         :return:
