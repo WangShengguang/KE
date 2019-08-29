@@ -8,11 +8,12 @@ from ._model import Model
 class ConvKB(Model):
 
     def __init__(self, sequence_length, num_classes, embedding_size, filter_sizes, num_filters, vocab_size,
-                 pre_trained=[], l2_reg_lambda=0.001, dropout_keep_prob=1.0, useConstantInit=False):
-        super().__init__()
+                 pre_trained=[], l2_reg_lambda=0.001, dropout_keep_prob=1.0, useConstantInit=False, **kwargs):
+        super().__init__(**kwargs)
         # Placeholders for input, output and dropout
-        self.input_x = tf.placeholder(tf.int32, [None, sequence_length], name="input_x")
-        self.input_y = tf.placeholder(tf.float32, [None, num_classes], name="input_y")
+        self.input_x = tf.placeholder(tf.int32, [None, sequence_length],
+                                      name="input_x")  # [[10630,4,1715],[1422,4,18765]] h,r,t
+        self.input_y = tf.placeholder(tf.float32, [None, num_classes], name="input_y")  # [[1],[1],[-1]]
         # Keeping track of l2 regularization loss (optional)
         l2_loss = tf.constant(0.0)
 

@@ -4,9 +4,8 @@ import tensorflow as tf
 
 from ke.config import Config
 from ke.data_helper import DataHelper
-from ke.tf_models.evaluator import get_metrics
+from ke.tf_models.model_utils.conf import session_conf
 from ke.tf_models.models import ConvKB
-from .model_utils.conf import session_conf
 
 
 class Trainer(object):
@@ -28,7 +27,8 @@ class Trainer(object):
                 vocab_size=vocab_size,
                 l2_reg_lambda=0.001,
                 dropout_keep_prob=1.0,
-                useConstantInit=False)
+                useConstantInit=False,
+                data_set=self.data_set)
         else:
             raise ValueError(self.model_name)
         return model
@@ -41,22 +41,25 @@ class Trainer(object):
             # get model
             model = self.get_model()
             sess.run(tf.global_variables_initializer())
-            # 断点续训
-            model.load(sess, fail_ok=True)
+            if Config.load_pretrain:  # 断点续训
+                model.load(sess, fail_ok=True)
             logging.info("{} start train ...".format(self.model_name))
-            for x_batch, y_batch in self.data_helper.batch_iter(data_type="train",
-                                                                batch_size=Config.batch_size,
-                                                                epoch_nums=Config.epoch_nums):
-                _, global_step, loss, prediction = sess.run([model.train_op, model.global_step,
-                                                             model.loss, model.prediction],
-                                                            feed_dict={
-                                                                model.input_x: x_batch,
-                                                                model.input_y: y_batch}
-                                                            )
+            for epoch in range(Config.epoch_nums):
+                for x_batch, y_batch in self.data_helper.batch_iter(data_type="train",
+                                                                    batch_size=Config.batch_size,
+                                                                    mode="hrt"):
+                    import ipdb
+                    ipdb.set_trace()
+                    _, global_step, loss, prediction = sess.run([model.train_op, model.global_step,
+                                                                 model.loss, model.prediction],
+                                                                feed_dict={
+                                                                    model.input_x: x_batch,
+                                                                    model.input_y: y_batch}
+                                                                )
 
-                logging.info(" step:{}, loss: {:.6f}".format(global_step, loss))
-                if global_step > 0 and global_step % Config.save_step == 0:
-                    model.save(sess, loss=loss)
-                # accuracy, precision, recall, f1 = get_metrics(prediction, y_batch)
-                # logging.info("accuracy:{:.6f}, precision:{:.6f}, recall:{:.6f}, f1:{:.6f}".format(
-                #     accuracy, precision, recall, f1))
+                    logging.info(" step:{}, loss: {:.6f}".format(global_step, loss))
+                    if global_step > 0 and global_step % Config.save_step == 0:
+                        model.save(sess, loss=loss)
+                    # accuracy, precision, recall, f1 = get_metrics(prediction, y_batch)
+                    # logging.info("accuracy:{:.6f}, precision:{:.6f}, recall:{:.6f}, f1:{:.6f}".format(
+                    #     accuracy, precision, recall, f1))

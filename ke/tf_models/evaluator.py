@@ -6,13 +6,15 @@ import tensorflow as tf
 from ke.data_helper import DataHelper
 from ke.evaluate.metrics import calcu_metrics
 from ke.evaluate.rank_metrics import RankMetrics
-from .model_utils.conf import session_conf
-from .model_utils.saver import Saver
+from ke.tf_models.model_utils.conf import session_conf
+from ke.tf_models.model_utils.saver import Saver
 
 
 class Predictor(object):
-    def __init__(self, model_name, data_set):
+    def __init__(self, model_name, data_set, mode="htr"):
         self.model_name = model_name
+        self.data_set = data_set
+        self.mode = mode
         self.rank_metrics = RankMetrics()
         self.data_helper = DataHelper(data_set=data_set)
         self.entity_nums = len(self.data_helper.entity2id)
@@ -22,7 +24,7 @@ class Predictor(object):
     def load_model(self):
         graph = tf.Graph()
         with graph.as_default():
-            saver = Saver(self.model_name, allow_empty=True)
+            saver = Saver(self.model_name, relative_dir=self.data_set, allow_empty=True)
             self.sess = tf.Session(config=session_conf, graph=graph)
             saver.load_model(self.sess)
             self.input_x = graph.get_operation_by_name("input_x").outputs[0]
@@ -36,7 +38,12 @@ class Predictor(object):
         :param batch_r: [0,6,3,...,r_id]
         :return:
         """
-        x = np.asarray(list(zip(batch_h, batch_t, batch_r)))
+        if self.mode == "htr":
+            x = np.asarray(list(zip(batch_h, batch_t, batch_r)))
+        elif self.mode == "hrt":
+            x = np.asarray(list(zip(batch_h, batch_r, batch_t)))
+        else:
+            raise ValueError(self.mode)
         prediction = self.sess.run(self.prediction, feed_dict={self.input_x: x})
         return prediction
 
@@ -130,48 +137,6 @@ def get_rank_hit_metrics(y_id, pred_ids):
 
 class Evaluator(Predictor):
 
-    def test_link_prediction(self):
-        """
-        链接预测，预测头实体或尾实体
-        """
-        metrics_li = []
-        for h, t, r in self.data_helper.data["test"]:
-            pred_head_ids = self.predict_head_entity(t, r)
-            _metrics = get_rank_hit_metrics(y_id=h, pred_ids=pred_head_ids)
-            metrics_li.append(_metrics)
-            pred_tail_ids = self.predict_tail_entity(h, r)
-            _metrics = get_rank_hit_metrics(y_id=t, pred_ids=pred_tail_ids)
-            metrics_li.append(_metrics)
-        metrics = {}
-        for metric_name in metrics_li[0].keys():
-            metrics[metric_name] = sum([_metrics[metric_name] for _metrics in metrics_li]) / len(metrics_li)
-        mr, mrr, hit_1, hit_3, hit_10 = (metrics["MR"], metrics["MRR"],
-                                         metrics["HITS@10"], metrics["HITS@3"], metrics["HITS@1"])
-        # logging.info("mr:{:.4f}, mrr:{:.4f}, hit_1:{:.4f}, hit_3:{:.4f}, hit_10:{:.4f}".format(
-        #     mr, mrr, hit_1, hit_3, hit_10))
-        return mr, mrr, hit_1, hit_3, hit_10
-
-    def test_triple_classification(self):
-        accs = []
-        precissions = []
-        recalls = []
-        f1s = []
-        for x_batch, y_batch in self.data_helper.batch_iter(data_type="test",
-                                                            batch_size=128,
-                                                            epoch_nums=1):
-            prediction = self.sess.run(self.prediction, feed_dict={self.input_x: x_batch,
-                                                                   self.input_y: y_batch})
-            accuracy, precision, recall, f1 = get_metrics(prediction, y_batch)
-            accs.append(accuracy)
-            precissions.append(precision)
-            recalls.append(recall)
-            f1s.append(f1)
-        accuracy = np.mean(accs)
-        precision = np.mean(precissions)
-        recall = np.mean(recalls)
-        f1 = np.mean(f1s)
-        return accuracy, precision, recall, f1
-
     def test(self):
         ranks = []
         ranks_left = []
@@ -217,8 +182,53 @@ class Evaluator(Predictor):
         mrr = np.mean(1. / np.array(ranks))
         mrr_left = np.mean(1. / np.array(ranks_left))
         mrr_right = np.mean(1. / np.array(ranks_right))
-        metrics = {"MR": mr, "MR_left": mr_left, "MR_right": mr_right,
-                   "MRR": mrr, "MRR_left": mrr_left, "MRR_right": mrr_right,
-                   "Hit@10": hits[10], "Hit@3": hits[3], "Hit@1": hits[1]
-                   }
+        metrics = {
+            "left": {"MR": mr_left, "MRR": mrr_left,
+                     "Hit@10": hits_left[10], "Hit@3": hits_left[3], "Hit@1": hits_left[1]},
+            "right": {"MR": mr_right, "MRR": mrr_right,
+                      "Hit@10": hits_right[10], "Hit@3": hits_right[3], "Hit@1": hits_right[1]},
+            "ave": {"MR": mr, "MRR": mrr,
+                    "Hit@10": hits[10], "Hit@3": hits[3], "Hit@1": hits[1]}
+        }
         return metrics
+
+    def test_link_prediction(self):
+        """
+        链接预测，预测头实体或尾实体
+        """
+        metrics_li = []
+        for h, t, r in self.data_helper.data["test"]:
+            pred_head_ids = self.predict_head_entity(t, r)
+            _metrics = get_rank_hit_metrics(y_id=h, pred_ids=pred_head_ids)
+            metrics_li.append(_metrics)
+            pred_tail_ids = self.predict_tail_entity(h, r)
+            _metrics = get_rank_hit_metrics(y_id=t, pred_ids=pred_tail_ids)
+            metrics_li.append(_metrics)
+        metrics = {}
+        for metric_name in metrics_li[0].keys():
+            metrics[metric_name] = sum([_metrics[metric_name] for _metrics in metrics_li]) / len(metrics_li)
+        mr, mrr, hit_1, hit_3, hit_10 = (metrics["MR"], metrics["MRR"],
+                                         metrics["HITS@10"], metrics["HITS@3"], metrics["HITS@1"])
+        # logging.info("mr:{:.4f}, mrr:{:.4f}, hit_1:{:.4f}, hit_3:{:.4f}, hit_10:{:.4f}".format(
+        #     mr, mrr, hit_1, hit_3, hit_10))
+        return mr, mrr, hit_1, hit_3, hit_10
+
+    def test_triple_classification(self):
+        accs = []
+        precissions = []
+        recalls = []
+        f1s = []
+        for x_batch, y_batch in self.data_helper.batch_iter(data_type="test",
+                                                            batch_size=128):
+            prediction = self.sess.run(self.prediction, feed_dict={self.input_x: x_batch,
+                                                                   self.input_y: y_batch})
+            accuracy, precision, recall, f1 = get_metrics(prediction, y_batch)
+            accs.append(accuracy)
+            precissions.append(precision)
+            recalls.append(recall)
+            f1s.append(f1)
+        accuracy = np.mean(accs)
+        precision = np.mean(precissions)
+        recall = np.mean(recalls)
+        f1 = np.mean(f1s)
+        return accuracy, precision, recall, f1

@@ -2,12 +2,10 @@ import os
 import re
 
 import numpy as np
-from sklearn.utils import shuffle
 
 from ke.config import Config
 
 np.random.seed(1234)
-data_dir = Config.data_dir
 
 
 class DataHelper(object):
@@ -30,7 +28,7 @@ class DataHelper(object):
         """
 
         def read_data(file_name):
-            file_path = os.path.join(data_dir, self.data_set, file_name)
+            file_path = os.path.join(Config.data_dir, self.data_set, file_name)
             with open(file_path, "r", encoding="utf-8") as f:
                 count = int(f.readline())
                 lines = [re.sub("\s+", " ", line).strip() for line in f if line.strip()]
@@ -55,7 +53,7 @@ class DataHelper(object):
         entity_ids = list(self.entity2id.values())
         negative_samples = []
         for h, t, r in positive_samples:
-            while (h, t, r) in pos_samples_set:
+            while (h, t, r) in pos_samples_set:  # TODO replace r，not only h,t
                 e = np.random.choice(entity_ids)
                 if np.random.choice([True, False]):
                     h = e
@@ -64,19 +62,24 @@ class DataHelper(object):
             negative_samples.append((h, t, r))
         return positive_samples, negative_samples
 
-    def batch_iter(self, data_type, batch_size, epoch_nums, _shuffle=True):
+    def batch_iter(self, data_type, batch_size, _shuffle=True, mode="hrt", neg_label=-1):
         positive_samples, negative_samples = self.get_samples(data_type)
-        x_data = positive_samples + negative_samples
-        y_data = [[1]] * len(positive_samples) + [[0]] * len(negative_samples)  # y为一维向量
-        for epoch in range(epoch_nums):
-            if _shuffle:
-                x_data, y_data = shuffle(x_data, y_data, random_state=epoch)
-            x_batch = []
-            y_batch = []
-            for x_sample, y_sample in zip(x_data, y_data):
-                x_batch.append(x_sample)  # 注意，交换了位置
-                y_batch.append(y_sample)
-                if len(x_batch) == batch_size:
-                    yield np.asarray(x_batch), np.asarray(y_batch)
-                    x_batch = []
-                    y_batch = []
+        data_size = len(positive_samples)
+        order = list(range(data_size))
+        if _shuffle:
+            np.random.shuffle(order)
+        for batch_step in range(data_size // (batch_size // 2)):
+            # fetch sentences and tags
+            batch_idxs = order[batch_step * batch_size:(batch_step + 1) * batch_size]
+            _positive_samples = [positive_samples[idx] for idx in batch_idxs]
+            _negative_samples = [negative_samples[idx] for idx in batch_idxs]
+            x_batch, y_batch = [], []
+            for (h, t, r) in _positive_samples:
+                x = (h, t, r) if mode == "htr" else (h, r, t)  # 交换了位置
+                x_batch.append(x)
+                y_batch.append(1)
+            for (h, t, r) in _negative_samples:
+                x = (h, t, r) if mode == "htr" else (h, r, t)  # 交换了位置
+                x_batch.append((h, r, t))  # 交换了位置
+                y_batch.append(neg_label)
+            yield np.asarray(x_batch), np.asarray(y_batch)

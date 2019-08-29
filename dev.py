@@ -9,6 +9,7 @@ def preprocess():
 def train():
     model_name = "ConvKB"
     data_set = "lawdata"
+    data_set = "WN18RR"
     from ke.tf_models.trainer import Trainer
     Trainer(model_name=model_name, data_set=data_set).run()
 
@@ -26,7 +27,7 @@ def evaluate():
 def main():
     logging_config("dev.log", stream_log=True, relative_path=".")
     preprocess()  # 构建词典
-    # train()
+    train()
     evaluate()
 
 

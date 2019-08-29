@@ -18,14 +18,17 @@ class Saver(tf.train.Saver):
     所有模型使用同一种命名格式保存 model-0.01-0.9.ckpt.meta ...
     """
 
-    def __init__(self, model_name, checkpoint_dir=None, **kwargs):
+    def __init__(self, model_name, checkpoint_dir=None, relative_dir=None, **kwargs):
         """
         :param model_name:  模型名
         :param checkpoint_dir:  模型存储目录
         """
         super().__init__(**kwargs)
         self.model_name = model_name
-        self.checkpoint_dir = os.path.join(checkpoint_dir if checkpoint_dir else Config.tf_ckpt_dir, self.model_name)
+        checkpoint_dir = checkpoint_dir if checkpoint_dir else Config.tf_ckpt_dir
+        if relative_dir:
+            checkpoint_dir = os.path.join(checkpoint_dir, relative_dir)
+        self.checkpoint_dir = os.path.join(checkpoint_dir, self.model_name)
         self.ckpt_prefix_template = os.path.join(self.checkpoint_dir, "model-{loss:.3f}-{accuracy:.3f}.ckpt")
         self.meta_path_patten = re.compile("model-(?P<loss>\d+\.\d+)-(?P<acc>[01]\.\d+).ckpt-(?P<step>\d+).meta")
         self.config_saved = False

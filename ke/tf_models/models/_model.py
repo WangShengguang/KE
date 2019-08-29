@@ -20,9 +20,18 @@ class Model(object):
         self.prediction = NotImplemented
         # for model save & load
         self.name = kwargs['name'] if kwargs.get('name') else self.__class__.__name__  # model name
+        self.data_set = kwargs.get('data_set')
         self.checkpoint_dir = kwargs.get("checkpoint_dir")
         self.global_step = tf.Variable(0, trainable=False, name='global_step')
         self.saver = None
+
+    def __init_saver(self):
+        """ The tf.train.Saver must be created after the variables that you want to restore (or save). Additionally it must be created in the same graph as those variables.
+            https://stackoverflow.com/questions/38626435/tensorflow-valueerror-no-variables-to-save-from/38627631
+        """
+        if self.saver is None:
+            relative_dir = self.data_set
+            self.saver = Saver(model_name=self.name, checkpoint_dir=self.checkpoint_dir, relative_dir=relative_dir)
 
     def save(self, sess, loss=0.0, accuracy=0.0):
         """
@@ -43,10 +52,3 @@ class Model(object):
         self.__init_saver()
         self.saver.load_model(sess, mode=mode, fail_ok=fail_ok)
         # logging.info("Model restored from file: {}".format(save_path))
-
-    def __init_saver(self):
-        """ The tf.train.Saver must be created after the variables that you want to restore (or save). Additionally it must be created in the same graph as those variables.
-            https://stackoverflow.com/questions/38626435/tensorflow-valueerror-no-variables-to-save-from/38627631
-        """
-        if self.saver is None:
-            self.saver = Saver(model_name=self.name, checkpoint_dir=self.checkpoint_dir)

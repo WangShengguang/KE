@@ -21,8 +21,15 @@ class TrainConfig(DataConfig):
     num_classes = 1
     batch_size = 128
     epoch_nums = 100
-    save_step = 200
+    # early stop
+    max_epoch_nums = 20
+    min_epoch_nums = 5
+    patience = 0.02
+    patience_num = 3
+    # model save & load
+    load_pretrain = False  # 断点续训
     max_to_keep = 10
+    save_step = 200
 
 
 class Evaluate(TrainConfig):
