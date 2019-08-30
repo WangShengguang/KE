@@ -2,23 +2,24 @@ from typing import List
 
 import numpy as np
 import tensorflow as tf
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
+from ke.config import Config
 from ke.data_helper import DataHelper
-from ke.evaluate.metrics import calcu_metrics
 from ke.evaluate.rank_metrics import RankMetrics
 from ke.tf_models.model_utils.conf import session_conf
 from ke.tf_models.model_utils.saver import Saver
 
 
 class Predictor(object):
-    def __init__(self, model_name, data_set, mode="htr"):
+    def __init__(self, model_name, data_set):
         self.model_name = model_name
         self.data_set = data_set
-        self.mode = mode
         self.rank_metrics = RankMetrics()
         self.data_helper = DataHelper(data_set=data_set)
         self.entity_nums = len(self.data_helper.entity2id)
         self.relation_nums = len(self.data_helper.relation2id)
+        self.trasx_models = ["TransE"]
         self.load_model()
 
     def load_model(self):
@@ -27,9 +28,16 @@ class Predictor(object):
             saver = Saver(self.model_name, relative_dir=self.data_set, allow_empty=True)
             self.sess = tf.Session(config=session_conf, graph=graph)
             saver.load_model(self.sess)
-            self.input_x = graph.get_operation_by_name("input_x").outputs[0]
-            self.input_y = graph.get_operation_by_name("input_y").outputs[0]
-            self.prediction = graph.get_operation_by_name("prediction").outputs[0]
+            if self.model_name in ["ConvKB"]:  # ConvKB,TransformerKB
+                self.input_x = graph.get_operation_by_name("input_x").outputs[0]
+                self.input_y = graph.get_operation_by_name("input_y").outputs[0]
+            elif self.model_name in self.trasx_models:
+                self.predict_h = graph.get_operation_by_name("predict_h").outputs[0]
+                self.predict_t = graph.get_operation_by_name("predict_t").outputs[0]
+                self.predict_r = graph.get_operation_by_name("predict_r").outputs[0]
+            else:
+                raise ValueError(self.model_name)
+            self.prediction = graph.get_operation_by_name("predict").outputs[0]
 
     def predict(self, batch_h: List, batch_t: List, batch_r: List):
         """ 用于预测
@@ -38,14 +46,23 @@ class Predictor(object):
         :param batch_r: [0,6,3,...,r_id]
         :return:
         """
-        if self.mode == "htr":
-            x = np.asarray(list(zip(batch_h, batch_t, batch_r)))
-        elif self.mode == "hrt":
+        if self.model_name in ["ConvKB"]:  # ConvKB,TransformerKB
             x = np.asarray(list(zip(batch_h, batch_r, batch_t)))
+            prediction = self.sess.run(self.prediction, feed_dict={self.input_x: x})
+            return prediction
+        elif self.model_name in self.trasx_models:  # TransX
+            x = np.asarray(list(zip(batch_h, batch_t, batch_r)))
+            input_size = x.shape[0]
+            pad = np.zeros(Config.batch_size - input_size)
+            batch_h = np.concatenate([batch_h, pad], axis=0)
+            batch_t = np.concatenate([batch_t, pad], axis=0)
+            batch_r = np.concatenate([batch_r, pad], axis=0)
+            prediction = self.sess.run(self.prediction, feed_dict={self.predict_h: batch_h,
+                                                                   self.predict_t: batch_t,
+                                                                   self.predict_r: batch_r})
+            return prediction[:input_size]
         else:
-            raise ValueError(self.mode)
-        prediction = self.sess.run(self.prediction, feed_dict={self.input_x: x})
-        return prediction
+            raise ValueError(self.model_name)
 
     # link Predict 链接预测，预测头实体or尾实体
     def predict_head_entity(self, t, r):
@@ -116,15 +133,11 @@ class Predictor(object):
         return prediction
 
 
-def get_metrics(prediction, y_batch):
-    prediction[prediction >= 0.5] = 1
-    prediction[prediction < 0.5] = 0
-    prediction = prediction.astype(int)
-    accuracy, precision, recall, f1 = calcu_metrics(y_batch, prediction, all_labels=(0, 1), mode="macro")
-    return accuracy, precision, recall, f1
-
-
 def get_rank_hit_metrics(y_id, pred_ids):
+    """
+    :type y_id: int
+    :type pred_ids: list
+    """
     ranking = pred_ids.index(y_id) + 1
     _matrics = {
         'MRR': 1.0 / ranking,
@@ -136,6 +149,9 @@ def get_rank_hit_metrics(y_id, pred_ids):
 
 
 class Evaluator(Predictor):
+    def __init__(self, model_name, data_set, data_type="test"):
+        super().__init__(model_name, data_set)
+        self.data_type = data_type
 
     def test(self):
         ranks = []
@@ -144,7 +160,7 @@ class Evaluator(Predictor):
         hits = {1: [], 3: [], 5: []}
         hits_left = {1: [], 3: [], 5: []}
         hits_right = {1: [], 3: [], 5: []}
-        for h, t, r in self.data_helper.data["test"]:
+        for h, t, r in self.data_helper.data[self.data_type]:
             pred_head_ids = self.predict_head_entity(t, r)
             rank_left = pred_head_ids.index(h) + 1
             pred_tail_ids = self.predict_tail_entity(h, r)
@@ -197,7 +213,7 @@ class Evaluator(Predictor):
         链接预测，预测头实体或尾实体
         """
         metrics_li = []
-        for h, t, r in self.data_helper.data["test"]:
+        for h, t, r in self.data_helper.data[self.data_type]:
             pred_head_ids = self.predict_head_entity(t, r)
             _metrics = get_rank_hit_metrics(y_id=h, pred_ids=pred_head_ids)
             metrics_li.append(_metrics)
@@ -214,21 +230,17 @@ class Evaluator(Predictor):
         return mr, mrr, hit_1, hit_3, hit_10
 
     def test_triple_classification(self):
-        accs = []
-        precissions = []
-        recalls = []
-        f1s = []
-        for x_batch, y_batch in self.data_helper.batch_iter(data_type="test",
-                                                            batch_size=128):
-            prediction = self.sess.run(self.prediction, feed_dict={self.input_x: x_batch,
-                                                                   self.input_y: y_batch})
-            accuracy, precision, recall, f1 = get_metrics(prediction, y_batch)
-            accs.append(accuracy)
-            precissions.append(precision)
-            recalls.append(recall)
-            f1s.append(f1)
-        accuracy = np.mean(accs)
-        precision = np.mean(precissions)
-        recall = np.mean(recalls)
-        f1 = np.mean(f1s)
+        y_true = []
+        y_pred = []
+        for x_batch, y_batch in self.data_helper.batch_iter(data_type=self.data_type, batch_size=128, mode="htr"):
+            prediction = self.predict(batch_h=x_batch[:, 0], batch_t=x_batch[:, 1], batch_r=x_batch[:, 2])
+            prediction[prediction >= 0.5] = 1
+            prediction[prediction < 0.5] = 0
+            y_pred.extend(prediction.reshape([-1]).astype(int).tolist())
+            y_batch[y_batch == -1] = 0
+            y_true.extend(y_batch.reshape([-1]).tolist())
+        accuracy = accuracy_score(y_true, y_pred)
+        precision = precision_score(y_true, y_pred)
+        recall = recall_score(y_true, y_pred)
+        f1 = f1_score(y_true, y_pred)
         return accuracy, precision, recall, f1

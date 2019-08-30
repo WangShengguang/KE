@@ -2,29 +2,29 @@ import math
 
 import tensorflow as tf
 
+from ke.config import Config
 from ._model import Model
 
 
 class ConvKB(Model):
 
-    def __init__(self, sequence_length, num_classes, embedding_size, filter_sizes, num_filters, vocab_size,
-                 pre_trained=[], l2_reg_lambda=0.001, dropout_keep_prob=1.0, useConstantInit=False, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, filter_sizes, num_filters, vocab_size, data_set,
+                 embedding_size=Config.ent_emb_dim, l2_reg_lambda=0.001, dropout_keep_prob=1.0, useConstantInit=False):
+        super().__init__(data_set=data_set)
+        # parms
+        sequence_length = Config.sequence_len
+        num_classes = Config.num_classes
         # Placeholders for input, output and dropout
-        self.input_x = tf.placeholder(tf.int32, [None, sequence_length],
-                                      name="input_x")  # [[10630,4,1715],[1422,4,18765]] h,r,t
+        self.input_x = tf.placeholder(tf.int32, [None, sequence_length], name="input_x")
+        # self.input_x = tf.transpose(self.input_x)  # [[10630,4,1715],[1422,4,18765]] h,r,t
         self.input_y = tf.placeholder(tf.float32, [None, num_classes], name="input_y")  # [[1],[1],[-1]]
         # Keeping track of l2 regularization loss (optional)
         l2_loss = tf.constant(0.0)
 
         # Embedding layer
         with tf.name_scope("embedding"):
-            if pre_trained == []:
-                self.W = tf.Variable(tf.random_uniform([vocab_size, embedding_size], -math.sqrt(1.0 / embedding_size),
-                                                       math.sqrt(1.0 / embedding_size), seed=1234), name="W")
-            else:
-                self.W = tf.get_variable(name="W2", initializer=pre_trained)  # trainable=is_trainable)
-
+            self.W = tf.Variable(tf.random_uniform([vocab_size, embedding_size], -math.sqrt(1.0 / embedding_size),
+                                                   math.sqrt(1.0 / embedding_size), seed=1234), name="W")
             self.embedded_chars = tf.nn.embedding_lookup(self.W, self.input_x)
             self.embedded_chars_expanded = tf.expand_dims(self.embedded_chars, -1)
 
@@ -70,7 +70,7 @@ class ConvKB(Model):
             l2_loss += tf.nn.l2_loss(W)
             l2_loss += tf.nn.l2_loss(b)
             self.scores = tf.nn.xw_plus_b(self.h_drop, W, b, name="scores")
-        self.prediction = tf.nn.sigmoid(self.scores, name="prediction")
+        self.predict = tf.nn.sigmoid(self.scores, name="predict")
         # Calculate loss
         with tf.name_scope("loss"):
             losses = tf.nn.softplus(self.scores * self.input_y)

@@ -3,9 +3,7 @@ import re
 
 import numpy as np
 
-from ke.config import Config
-
-np.random.seed(1234)
+from ke.config import data_dir
 
 
 class DataHelper(object):
@@ -28,7 +26,7 @@ class DataHelper(object):
         """
 
         def read_data(file_name):
-            file_path = os.path.join(Config.data_dir, self.data_set, file_name)
+            file_path = os.path.join(data_dir, self.data_set, file_name)
             with open(file_path, "r", encoding="utf-8") as f:
                 count = int(f.readline())
                 lines = [re.sub("\s+", " ", line).strip() for line in f if line.strip()]
@@ -60,6 +58,7 @@ class DataHelper(object):
                 else:
                     t = e
             negative_samples.append((h, t, r))
+        assert len(positive_samples) == len(negative_samples)
         return positive_samples, negative_samples
 
     def batch_iter(self, data_type, batch_size, _shuffle=True, mode="hrt", neg_label=-1):
@@ -68,18 +67,19 @@ class DataHelper(object):
         order = list(range(data_size))
         if _shuffle:
             np.random.shuffle(order)
-        for batch_step in range(data_size // (batch_size // 2)):
+        _batch_size = (batch_size // 2)
+        for batch_step in range(data_size // _batch_size):
             # fetch sentences and tags
-            batch_idxs = order[batch_step * batch_size:(batch_step + 1) * batch_size]
+            batch_idxs = order[batch_step * _batch_size:(batch_step + 1) * _batch_size]
             _positive_samples = [positive_samples[idx] for idx in batch_idxs]
             _negative_samples = [negative_samples[idx] for idx in batch_idxs]
             x_batch, y_batch = [], []
             for (h, t, r) in _positive_samples:
                 x = (h, t, r) if mode == "htr" else (h, r, t)  # 交换了位置
                 x_batch.append(x)
-                y_batch.append(1)
+                y_batch.append([1])
             for (h, t, r) in _negative_samples:
                 x = (h, t, r) if mode == "htr" else (h, r, t)  # 交换了位置
-                x_batch.append((h, r, t))  # 交换了位置
-                y_batch.append(neg_label)
+                x_batch.append(x)  # 交换了位置
+                y_batch.append([neg_label])
             yield np.asarray(x_batch), np.asarray(y_batch)
