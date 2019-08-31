@@ -3,81 +3,116 @@ import tensorflow as tf
 from ke.config import Config
 from ke.tf_models.model_utils.saver import Saver
 
+__all__ = ["Model", "TransXModel"]
 
-class Model(object):
+
+class NetworkMeta(type):
+
+    def __new__(mcs, class_name, class_parents, class_attr):
+        if class_name not in __all__:  # subclass
+            _parent_init = class_parents[0].__init__
+            if "__init__" in class_attr:
+                _cur_init = class_attr["__init__"]  # subclass __init__
+
+                def _init(self, *args, **kwargs):
+                    # _parent_init(self, *args, **kwargs) #子类init中一般已经完成对父类init的调用
+                    _cur_init(self, *args, **kwargs)
+                    getattr(self, "_Model__network_build")()  # 子类初始化完成后调用_network_build
+            else:
+
+                def _init(self, *args, **kwargs):
+                    _parent_init(self, *args, **kwargs)
+                    getattr(self, "_Model__network_build")()  # 子类初始化完成后调用_network_build
+
+            class_attr["__init__"] = _init
+
+        return type.__new__(mcs, class_name, class_parents, class_attr)
+
+
+class Model(metaclass=NetworkMeta):
     """ 轻度封装，实现 model.save 和 model.load
         https://zhuanlan.zhihu.com/p/68899384
         https://github.com/MrGemy95/Tensorflow-Project-Template/blob/master/base/base_model.py
     """
 
-    def __init__(self, data_set, num_ent_tags, num_rel_tags,
-                 ent_emb_dim=Config.ent_emb_dim, rel_emb_dim=Config.rel_emb_dim, *args, **kwargs):
+    def __init__(self, data_set=None, num_ent_tags=None, num_rel_tags=None,
+                 ent_emb_dim=Config.ent_emb_dim, rel_emb_dim=Config.rel_emb_dim,
+                 sequence_length=Config.sequence_len, batch_size=Config.batch_size, num_classes=Config.num_classes,
+                 name=None, checkpoint_dir=None):
         """ 为统一训练方式，几个属性张量必须在子类实现
         input_x,input_y,loss,train_op,predict
         :param data_set: 数据集名称，用来作为模型保存的相对目录
+                model_path = checkpoint_dir/data_set/model_name  *.meta
         """
+        # subclass __init__ write here
         # for model save & load
-        self.name = kwargs['name'] if kwargs.get('name') else self.__class__.__name__  # model name
+        self.name = name if name else self.__class__.__name__  # model name
+        self.checkpoint_dir = checkpoint_dir if checkpoint_dir else Config.tf_ckpt_dir
         self.data_set = data_set
-        self.checkpoint_dir = kwargs.get("checkpoint_dir")
+        self.num_ent_tags = num_ent_tags
+        self.num_rel_tags = num_rel_tags
+        self.ent_emb_dim = ent_emb_dim
+        self.rel_emb_dim = rel_emb_dim
+        #
+        self.sequence_length = sequence_length
+        self.batch_size = batch_size
+        self.num_classes = num_classes
         # build model
-        self._build(num_ent_tags, num_rel_tags, ent_emb_dim, rel_emb_dim)
+        # self._build(num_ent_tags, num_rel_tags, ent_emb_dim, rel_emb_dim, **kwargs)
 
-    def _build(self, num_ent_tags, num_rel_tags, ent_emb_dim, rel_emb_dim):
+    def __network_build(self):
+        """子类 __init__完成之后再调用此方法,通过元类实现"""
         self.global_step = tf.Variable(0, trainable=False, name='global_step')
-        self.input_def()
-        self.embedding_def(num_ent_tags, num_rel_tags, ent_emb_dim, rel_emb_dim)
-        self.forward()
-        self.predict_def()
-        optimizer = tf.train.AdamOptimizer(learning_rate=Config.learning_rate)
-        grads_and_vars = optimizer.compute_gradients(self.loss)
-        self.train_op = optimizer.apply_gradients(grads_and_vars, global_step=self.global_step)
+        self.input_def()  # placeholder
+        self.embedding_def(self.num_ent_tags, self.num_rel_tags, self.ent_emb_dim, self.rel_emb_dim)  # weights
+        self.forward()  # forward propagate
+        self.backward()  # backward propagate
         self.saver = Saver(max_to_keep=Config.max_to_keep, model_name=self.name,
                            checkpoint_dir=self.checkpoint_dir, relative_dir=self.data_set)
 
-    def build(self):
-        raise NotImplemented
-
     def input_def(self):
-        self.input_x = tf.placeholder(tf.int32, [None, Config.sequence_len], name="input_x")
-        self.input_y = tf.placeholder(tf.float32, [None, Config.num_classes], name="input_y")  # [[1],[1],[-1]]
+        sequence_length = self.sequence_length
+        num_classes = self.num_classes
+        batch_size = self.batch_size
+        # [[10630,4,1715],[1422,4,18765]] h,r,t
+        self.input_x = tf.placeholder(tf.int32, [batch_size, sequence_length], name="input_x")
+        self.input_y = tf.placeholder(tf.float32, [batch_size, num_classes], name="input_y")  # [[1],[1],[-1]]
+        h, t, r = tf.unstack(self.input_x, axis=1)
+        self.input_x = tf.stack([h, r, t], axis=1)  # 交换了位置
 
     def embedding_def(self, num_ent_tags, num_rel_tags, ent_emb_dim, rel_emb_dim):
         pass
 
     def forward(self):
         self.loss = None
-        raise NotImplemented
+        self.predict = None
+        raise NotImplementedError
 
-    def predict_def(self):
-        pass
+    def backward(self):
+        optimizer = tf.train.AdamOptimizer(learning_rate=Config.learning_rate)
+        grads_and_vars = optimizer.compute_gradients(self.loss)
+        self.train_op = optimizer.apply_gradients(grads_and_vars, global_step=self.global_step)
+        return self.train_op
 
 
 class TransXModel(Model):
     def __init__(self, data_set, num_ent_tags, num_rel_tags, ent_emb_dim=Config.ent_emb_dim,
-                 rel_emb_dim=Config.rel_emb_dim, *args, **kwargs):
-        super().__init__(data_set, num_ent_tags, num_rel_tags, ent_emb_dim, rel_emb_dim, *args, **kwargs)
+                 rel_emb_dim=Config.rel_emb_dim, **kwargs):
+        super().__init__(data_set, num_ent_tags, num_rel_tags, ent_emb_dim, rel_emb_dim, **kwargs)
 
     def input_def(self):
-        sequence_length = Config.sequence_len
-        num_classes = Config.num_classes
-        batch_size = Config.batch_size
+        sequence_length = self.sequence_length
+        num_classes = self.num_classes
+        batch_size = self.batch_size
         # [[10630,4,1715],[1422,4,18765]] h,r,t
         self.input_x = tf.placeholder(tf.int32, [batch_size, sequence_length], name="input_x")
         self.input_y = tf.placeholder(tf.float32, [batch_size, num_classes], name="input_y")  # [[1],[1],[-1]]
+        self.h, self.t, self.r = tf.unstack(self.input_x, axis=1)
         positive_indices = tf.where(tf.equal(tf.reshape(self.input_y, [-1]), 1))
-        negative_indices = tf.where(tf.less(tf.reshape(self.input_y, [-1]), 0.1))
+        negative_indices = tf.where(tf.less(tf.reshape(self.input_y, [-1]), 0.001))  # 0 or 1
         self.positive_samples = tf.reshape(tf.gather_nd(self.input_x, positive_indices),
                                            [batch_size // 2, sequence_length])
         self.negative_samples = tf.reshape(tf.gather_nd(self.input_x, negative_indices),
                                            [batch_size // 2, sequence_length])
         self.pos_h, self.pos_t, self.pos_r = tf.unstack(self.positive_samples, axis=1)
         self.neg_h, self.neg_t, self.neg_r = tf.unstack(self.negative_samples, axis=1)
-        #
-        # loss, train_op, predict
-        self.predict_h = tf.placeholder(tf.int32, [None], name="predict_h")
-        self.predict_t = tf.placeholder(tf.int32, [None], name="predict_t")
-        self.predict_r = tf.placeholder(tf.int32, [None], name="predict_r")
-
-    def predict_def(self):
-        raise NotImplemented

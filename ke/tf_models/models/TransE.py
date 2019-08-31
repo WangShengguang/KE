@@ -15,8 +15,6 @@ class TransE(TransXModel):
                                               initializer=tf.contrib.layers.xavier_initializer(uniform=False))
         self.rel_embeddings = tf.get_variable(name="rel_embeddings", shape=[num_rel_tags, rel_emb_dim],
                                               initializer=tf.contrib.layers.xavier_initializer(uniform=False))
-        self.parameter_lists = {"ent_embeddings": self.ent_embeddings,
-                                "rel_embeddings": self.rel_embeddings}
 
     def _calc(self, h, t, r):
         h = tf.nn.l2_normalize(h, -1)
@@ -34,6 +32,9 @@ class TransE(TransXModel):
         n_h = tf.nn.embedding_lookup(self.ent_embeddings, self.neg_h)
         n_t = tf.nn.embedding_lookup(self.ent_embeddings, self.neg_t)
         n_r = tf.nn.embedding_lookup(self.rel_embeddings, self.neg_r)
+        h = tf.nn.embedding_lookup(self.ent_embeddings, self.h)
+        t = tf.nn.embedding_lookup(self.ent_embeddings, self.t)
+        r = tf.nn.embedding_lookup(self.rel_embeddings, self.r)
         # Calculating score functions for all positive triples and negative triples
         # The shape of _p_score is (batch_size, 1, hidden_size)
         # The shape of _n_score is (batch_size, negative_ent + negative_rel, hidden_size)
@@ -41,14 +42,8 @@ class TransE(TransXModel):
         _n_score = self._calc(n_h, n_t, n_r)
         # The shape of p_score is (batch_size, 1, 1)
         # The shape of n_score is (batch_size, negative_ent + negative_rel, 1)
-        p_score = tf.reduce_sum(_p_score, -1, keep_dims=True)
-        n_score = tf.reduce_sum(_n_score, -1, keep_dims=True)
+        self.p_score = tf.reduce_sum(_p_score, -1, keep_dims=True)
+        self.n_score = tf.reduce_sum(_n_score, -1, keep_dims=True)
+        self.predict = tf.reduce_mean(self._calc(h, t, r), -1, keep_dims=False, name="predict")
         # Calculating loss to get what the framework will optimize
-        self.loss = tf.reduce_mean(tf.maximum(p_score - n_score + Config.margin, 0), name="loss")
-
-    def predict_def(self):
-        predict_h_e = tf.nn.embedding_lookup(self.ent_embeddings, self.predict_h)
-        predict_t_e = tf.nn.embedding_lookup(self.ent_embeddings, self.predict_t)
-        predict_r_e = tf.nn.embedding_lookup(self.rel_embeddings, self.predict_r)
-        self.predict = tf.reduce_mean(self._calc(predict_h_e, predict_t_e, predict_r_e), 1, keep_dims=False,
-                                      name="predict")
+        self.loss = tf.reduce_mean(tf.maximum(self.p_score - self.n_score + Config.margin, 0), name="loss")

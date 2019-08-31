@@ -61,7 +61,7 @@ class DataHelper(object):
         assert len(positive_samples) == len(negative_samples)
         return positive_samples, negative_samples
 
-    def batch_iter(self, data_type, batch_size, _shuffle=True, mode="hrt", neg_label=-1):
+    def batch_iter(self, data_type, batch_size, _shuffle=True, neg_label=-1):
         positive_samples, negative_samples = self.get_samples(data_type)
         data_size = len(positive_samples)
         order = list(range(data_size))
@@ -75,11 +75,9 @@ class DataHelper(object):
             _negative_samples = [negative_samples[idx] for idx in batch_idxs]
             x_batch, y_batch = [], []
             for (h, t, r) in _positive_samples:
-                x = (h, t, r) if mode == "htr" else (h, r, t)  # 交换了位置
-                x_batch.append(x)
+                x_batch.append((h, t, r))
                 y_batch.append([1])
             for (h, t, r) in _negative_samples:
-                x = (h, t, r) if mode == "htr" else (h, r, t)  # 交换了位置
-                x_batch.append(x)  # 交换了位置
+                x_batch.append((h, t, r))
                 y_batch.append([neg_label])
             yield np.asarray(x_batch), np.asarray(y_batch)

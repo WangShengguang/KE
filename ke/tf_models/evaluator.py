@@ -19,26 +19,15 @@ class Predictor(object):
         self.data_helper = DataHelper(data_set=data_set)
         self.entity_nums = len(self.data_helper.entity2id)
         self.relation_nums = len(self.data_helper.relation2id)
-        self.trasx_models = ["TransE"]
         self.load_model()
 
     def load_model(self):
-        # if self.model_name == "TransformerKB":
-        #     return
         graph = tf.Graph()
         self.sess = tf.Session(config=session_conf, graph=graph)
-        with graph.as_default():  # self 无法load TransformerKB
+        with graph.as_default(), self.sess.as_default():  # self 无法load TransformerKB
             saver = Saver(self.model_name, relative_dir=self.data_set, allow_empty=True)
             saver.restore_model(self.sess)
-            if self.model_name in ["ConvKB", "TransformerKB"]:  # ConvKB,TransformerKB
-                self.input_x = graph.get_operation_by_name("input_x").outputs[0]
-                self.input_y = graph.get_operation_by_name("input_y").outputs[0]
-            elif self.model_name in self.trasx_models:
-                self.predict_h = graph.get_operation_by_name("predict_h").outputs[0]
-                self.predict_t = graph.get_operation_by_name("predict_t").outputs[0]
-                self.predict_r = graph.get_operation_by_name("predict_r").outputs[0]
-            else:
-                raise ValueError(self.model_name)
+            self.input_x = graph.get_operation_by_name("input_x").outputs[0]
             self.prediction = graph.get_operation_by_name("predict").outputs[0]
 
     def predict(self, batch_h: List, batch_t: List, batch_r: List):
@@ -48,35 +37,14 @@ class Predictor(object):
         :param batch_r: [0,6,3,...,r_id]
         :return:
         """
-        # if self.model_name == "TransformerKB":
-        #     from ke.tf_models.models import TransformerKB
-        #     num_ent_tags = len(self.data_helper.entity2id)
-        #     num_rel_tags = len(self.data_helper.relation2id)
-        #     model = TransformerKB(self.data_set, num_ent_tags, num_rel_tags, embedding_dim=Config.ent_emb_dim)
-        #     graph = tf.Graph()
-        #     with graph.as_default(), tf.Session(config=session_conf, graph=graph) as sess:  # self 无法load TransformerKB
-        #         sess.run(tf.global_variables_initializer())
-        #         model.saver.restore_model(sess, fail_ok=False)
-        #         x = np.asarray(list(zip(batch_h, batch_r, batch_t)))
-        #         prediction = sess.run(model.predict, feed_dict={model.input_x: x})
-        #     return prediction
-        if self.model_name in ["ConvKB", "TransformerKB"]:  # ConvKB,TransformerKB
-            x = np.asarray(list(zip(batch_h, batch_r, batch_t)))
-            prediction = self.sess.run(self.prediction, feed_dict={self.input_x: x})
-            return prediction
-        elif self.model_name in self.trasx_models:  # TransX
-            x = np.asarray(list(zip(batch_h, batch_t, batch_r)))
-            input_size = x.shape[0]
-            pad = np.zeros(Config.batch_size - input_size)
-            batch_h = np.concatenate([batch_h, pad], axis=0)
-            batch_t = np.concatenate([batch_t, pad], axis=0)
-            batch_r = np.concatenate([batch_r, pad], axis=0)
-            prediction = self.sess.run(self.prediction, feed_dict={self.predict_h: batch_h,
-                                                                   self.predict_t: batch_t,
-                                                                   self.predict_r: batch_r})
-            return prediction[:input_size]
-        else:
-            raise ValueError(self.model_name)
+        input_size = len(batch_h)
+        _batch_size = Config.batch_size
+        x_data = list(zip(batch_h, batch_t, batch_r)) + [(0, 0, 0)] * (_batch_size - input_size % _batch_size)
+        prediction = []
+        for input_x in [x_data[i:i + _batch_size] for i in range(0, len(x_data), _batch_size)]:
+            _pred = self.sess.run(self.prediction, feed_dict={self.input_x: input_x})
+            prediction.extend(_pred.flatten().tolist())
+        return np.array(prediction[:input_size])
 
     # link Predict 链接预测，预测头实体or尾实体
     def predict_head_entity(self, t, r):
@@ -93,7 +61,7 @@ class Predictor(object):
         test_r = [r] * self.entity_nums
         test_t = [t] * self.entity_nums
         predictions = self.predict(test_h, test_t, test_r)
-        head_ids = predictions.reshape(-1).argsort()[::-1].tolist()
+        head_ids = predictions.flatten().argsort()[::-1].tolist()
         # print(head_ids)
         return head_ids
 
@@ -111,7 +79,7 @@ class Predictor(object):
         test_r = [r] * self.entity_nums
         test_t = list(range(self.entity_nums))
         predictions = self.predict(test_h, test_t, test_r)
-        tail_ids = predictions.reshape(-1).argsort()[::-1].tolist()
+        tail_ids = predictions.flatten().argsort()[::-1].tolist()
         # print(tail_ids)
         return tail_ids
 
@@ -130,7 +98,7 @@ class Predictor(object):
         test_r = list(range(self.relation_nums))
         test_t = [t] * self.relation_nums
         predictions = self.predict(test_h, test_t, test_r)
-        relations = predictions.reshape(-1).argsort()[::-1].tolist()
+        relations = predictions.flatten().argsort()[::-1].tolist()
         # print(relations)
         return relations
 
@@ -246,7 +214,7 @@ class Evaluator(Predictor):
     def test_triple_classification(self):
         y_true = []
         y_pred = []
-        for x_batch, y_batch in self.data_helper.batch_iter(data_type=self.data_type, batch_size=128, mode="htr"):
+        for x_batch, y_batch in self.data_helper.batch_iter(data_type=self.data_type, batch_size=128):
             prediction = self.predict(batch_h=x_batch[:, 0], batch_t=x_batch[:, 1], batch_r=x_batch[:, 2])
             prediction[prediction >= 0.5] = 1
             prediction[prediction < 0.5] = 0
