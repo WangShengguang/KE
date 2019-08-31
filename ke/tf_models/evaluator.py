@@ -12,7 +12,7 @@ from ke.tf_models.model_utils.saver import Saver
 
 
 class Predictor(object):
-    def __init__(self, model_name, data_set):
+    def __init__(self, model_name, data_set, sess=None):
         self.model_name = model_name
         self.data_set = data_set
         self.rank_metrics = RankMetrics()
@@ -23,12 +23,14 @@ class Predictor(object):
         self.load_model()
 
     def load_model(self):
+        # if self.model_name == "TransformerKB":
+        #     return
         graph = tf.Graph()
-        with graph.as_default():
+        self.sess = tf.Session(config=session_conf, graph=graph)
+        with graph.as_default():  # self 无法load TransformerKB
             saver = Saver(self.model_name, relative_dir=self.data_set, allow_empty=True)
-            self.sess = tf.Session(config=session_conf, graph=graph)
-            saver.load_model(self.sess)
-            if self.model_name in ["ConvKB"]:  # ConvKB,TransformerKB
+            saver.restore_model(self.sess)
+            if self.model_name in ["ConvKB", "TransformerKB"]:  # ConvKB,TransformerKB
                 self.input_x = graph.get_operation_by_name("input_x").outputs[0]
                 self.input_y = graph.get_operation_by_name("input_y").outputs[0]
             elif self.model_name in self.trasx_models:
@@ -46,7 +48,19 @@ class Predictor(object):
         :param batch_r: [0,6,3,...,r_id]
         :return:
         """
-        if self.model_name in ["ConvKB"]:  # ConvKB,TransformerKB
+        # if self.model_name == "TransformerKB":
+        #     from ke.tf_models.models import TransformerKB
+        #     num_ent_tags = len(self.data_helper.entity2id)
+        #     num_rel_tags = len(self.data_helper.relation2id)
+        #     model = TransformerKB(self.data_set, num_ent_tags, num_rel_tags, embedding_dim=Config.ent_emb_dim)
+        #     graph = tf.Graph()
+        #     with graph.as_default(), tf.Session(config=session_conf, graph=graph) as sess:  # self 无法load TransformerKB
+        #         sess.run(tf.global_variables_initializer())
+        #         model.saver.restore_model(sess, fail_ok=False)
+        #         x = np.asarray(list(zip(batch_h, batch_r, batch_t)))
+        #         prediction = sess.run(model.predict, feed_dict={model.input_x: x})
+        #     return prediction
+        if self.model_name in ["ConvKB", "TransformerKB"]:  # ConvKB,TransformerKB
             x = np.asarray(list(zip(batch_h, batch_r, batch_t)))
             prediction = self.sess.run(self.prediction, feed_dict={self.input_x: x})
             return prediction
@@ -149,17 +163,17 @@ def get_rank_hit_metrics(y_id, pred_ids):
 
 
 class Evaluator(Predictor):
-    def __init__(self, model_name, data_set, data_type="test"):
-        super().__init__(model_name, data_set)
+    def __init__(self, model_name, data_set, data_type="test", sess=None):
+        super().__init__(model_name, data_set, sess)
         self.data_type = data_type
 
     def test(self):
         ranks = []
         ranks_left = []
         ranks_right = []
-        hits = {1: [], 3: [], 5: []}
-        hits_left = {1: [], 3: [], 5: []}
-        hits_right = {1: [], 3: [], 5: []}
+        hits = {1: [], 3: [], 10: []}
+        hits_left = {1: [], 3: [], 10: []}
+        hits_right = {1: [], 3: [], 10: []}
         for h, t, r in self.data_helper.data[self.data_type]:
             pred_head_ids = self.predict_head_entity(t, r)
             rank_left = pred_head_ids.index(h) + 1

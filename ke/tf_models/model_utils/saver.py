@@ -18,7 +18,7 @@ class Saver(tf.train.Saver):
     所有模型使用同一种命名格式保存 model-0.01-0.9.ckpt.meta ...
     """
 
-    def __init__(self, model_name, checkpoint_dir=None, relative_dir=None, **kwargs):
+    def __init__(self, model_name="", checkpoint_dir=None, relative_dir=None, **kwargs):
         """
         :param model_name:  模型名
         :param checkpoint_dir:  模型存储目录
@@ -41,7 +41,7 @@ class Saver(tf.train.Saver):
             shutil.copyfile(src_config_path, dst_config_path)
             self.config_saved = True
 
-    def save_model(self, sess, global_step, loss=0.0, accuracy=0.0):
+    def save_model(self, sess, global_step, loss=0.0, accuracy=0.0, **kwargs):
         """
         :param sess: TensorFlow Session Object
         :type global_step: tf.Variable or int
@@ -51,12 +51,12 @@ class Saver(tf.train.Saver):
         """
         os.makedirs(self.checkpoint_dir, exist_ok=True)
         ckpt_prefix = self.ckpt_prefix_template.format(loss=loss, accuracy=accuracy)
-        model_checkpoint_path = self.save(sess, ckpt_prefix, global_step=global_step)
+        model_checkpoint_path = self.save(sess, ckpt_prefix, global_step=global_step, **kwargs)
         self.__save_config()
         logging.info("* Model save to file: {}".format(model_checkpoint_path))
         return model_checkpoint_path
 
-    def load_model(self, sess, mode=Config.load_model_mode, fail_ok=False):
+    def restore_model(self, sess, mode=Config.load_model_mode, fail_ok=False):
         """
             https://www.tensorflow.org/guide/saved_model?hl=zh-CN
         :param sess: TensorFlow Session Object
@@ -70,10 +70,9 @@ class Saver(tf.train.Saver):
             if not fail_ok:
                 raise ValueError("model_path is not exist, checkpoint_dir: {}".format(self.checkpoint_dir))
         else:
-            logging.info("* Model load from file: {}".format(model_path))
-            # self.restore(sess, model_path)
-            saver = tf.train.import_meta_graph(model_path + ".meta")
-            saver.restore(sess, model_path)
+            _saver = tf.train.import_meta_graph(model_path + ".meta")
+            _saver.restore(sess, model_path)
+            logging.info("* Model restore from file: {}".format(model_path))
         return model_path
 
     def check_valid(self, model_path):

@@ -31,7 +31,7 @@ def evaluate():
 
 def main():
     preprocess()  # 构建词典
-    # train()
+    train()
     evaluate()
 
 

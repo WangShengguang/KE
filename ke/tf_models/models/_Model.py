@@ -10,7 +10,8 @@ class Model(object):
         https://github.com/MrGemy95/Tensorflow-Project-Template/blob/master/base/base_model.py
     """
 
-    def __init__(self, data_set, **kwargs):
+    def __init__(self, data_set, num_ent_tags, num_rel_tags,
+                 ent_emb_dim=Config.ent_emb_dim, rel_emb_dim=Config.rel_emb_dim, *args, **kwargs):
         """ 为统一训练方式，几个属性张量必须在子类实现
         input_x,input_y,loss,train_op,predict
         :param data_set: 数据集名称，用来作为模型保存的相对目录
@@ -19,43 +20,44 @@ class Model(object):
         self.name = kwargs['name'] if kwargs.get('name') else self.__class__.__name__  # model name
         self.data_set = data_set
         self.checkpoint_dir = kwargs.get("checkpoint_dir")
+        # build model
+        self._build(num_ent_tags, num_rel_tags, ent_emb_dim, rel_emb_dim)
+
+    def _build(self, num_ent_tags, num_rel_tags, ent_emb_dim, rel_emb_dim):
         self.global_step = tf.Variable(0, trainable=False, name='global_step')
-        self.saver = None
         self.input_def()
+        self.embedding_def(num_ent_tags, num_rel_tags, ent_emb_dim, rel_emb_dim)
+        self.forward()
+        self.predict_def()
+        optimizer = tf.train.AdamOptimizer(learning_rate=Config.learning_rate)
+        grads_and_vars = optimizer.compute_gradients(self.loss)
+        self.train_op = optimizer.apply_gradients(grads_and_vars, global_step=self.global_step)
+        self.saver = Saver(max_to_keep=Config.max_to_keep, model_name=self.name,
+                           checkpoint_dir=self.checkpoint_dir, relative_dir=self.data_set)
+
+    def build(self):
+        raise NotImplemented
 
     def input_def(self):
+        self.input_x = tf.placeholder(tf.int32, [None, Config.sequence_len], name="input_x")
+        self.input_y = tf.placeholder(tf.float32, [None, Config.num_classes], name="input_y")  # [[1],[1],[-1]]
+
+    def embedding_def(self, num_ent_tags, num_rel_tags, ent_emb_dim, rel_emb_dim):
         pass
 
-    def __init_saver(self):
-        """ The tf.train.Saver must be created after the variables that you want to restore (or save). Additionally it must be created in the same graph as those variables.
-            https://stackoverflow.com/questions/38626435/tensorflow-valueerror-no-variables-to-save-from/38627631
-        """
-        if self.saver is None:
-            relative_dir = self.data_set
-            self.saver = Saver(model_name=self.name, checkpoint_dir=self.checkpoint_dir, relative_dir=relative_dir)
+    def forward(self):
+        self.loss = None
+        raise NotImplemented
 
-    def save(self, sess, loss=0.0, accuracy=0.0):
-        """
-        :param sess: TensorFlow Session Object
-        :type loss: tf.Variable or float
-        :type accuracy: float
-        """
-        self.__init_saver()
-        self.saver.save_model(sess, loss=loss, accuracy=accuracy, global_step=self.global_step)
-        # logging.info("Model saved in file: {}".format(save_path))
-
-    def load(self, sess, mode="max_step", fail_ok=False):
-        """
-        :param sess:  tf.Session() Object
-        :param mode: max_step, max_acc, min_loss
-        :return:
-        """
-        self.__init_saver()
-        self.saver.load_model(sess, mode=mode, fail_ok=fail_ok)
-        # logging.info("Model restored from file: {}".format(save_path))
+    def predict_def(self):
+        pass
 
 
 class TransXModel(Model):
+    def __init__(self, data_set, num_ent_tags, num_rel_tags, ent_emb_dim=Config.ent_emb_dim,
+                 rel_emb_dim=Config.rel_emb_dim, *args, **kwargs):
+        super().__init__(data_set, num_ent_tags, num_rel_tags, ent_emb_dim, rel_emb_dim, *args, **kwargs)
+
     def input_def(self):
         sequence_length = Config.sequence_len
         num_classes = Config.num_classes
@@ -63,9 +65,6 @@ class TransXModel(Model):
         # [[10630,4,1715],[1422,4,18765]] h,r,t
         self.input_x = tf.placeholder(tf.int32, [batch_size, sequence_length], name="input_x")
         self.input_y = tf.placeholder(tf.float32, [batch_size, num_classes], name="input_y")  # [[1],[1],[-1]]
-        # positive_indices = tf.where(tf.equal(tf.reshape(self.input_y, [batch_size, 1]), 1))
-        # positive_indices = tf.where(tf.equal(self.input_y, 1))
-        # negative_indices = tf.where(tf.equal(self.input_y, 0))
         positive_indices = tf.where(tf.equal(tf.reshape(self.input_y, [-1]), 1))
         negative_indices = tf.where(tf.less(tf.reshape(self.input_y, [-1]), 0.1))
         self.positive_samples = tf.reshape(tf.gather_nd(self.input_x, positive_indices),
@@ -79,3 +78,6 @@ class TransXModel(Model):
         self.predict_h = tf.placeholder(tf.int32, [None], name="predict_h")
         self.predict_t = tf.placeholder(tf.int32, [None], name="predict_t")
         self.predict_r = tf.placeholder(tf.int32, [None], name="predict_r")
+
+    def predict_def(self):
+        raise NotImplemented

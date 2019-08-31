@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 from ke.config import Config
-from ._model import TransXModel
+from ._Model import TransXModel
 
 
 class TransE(TransXModel):
@@ -10,19 +10,13 @@ class TransE(TransXModel):
     which interprets relations as the translations operating on entities.
     '''
 
-    def __init__(self, num_ent_tags, num_rel_tags, data_set, ent_emb_dim=Config.ent_emb_dim,
-                 rel_emb_dim=Config.rel_emb_dim):
-        super().__init__(data_set=data_set)
-        # Obtaining the initial configuration of the model
-        # Defining required parameters of the model, including embeddings of entities and relations
+    def embedding_def(self, num_ent_tags, num_rel_tags, ent_emb_dim, rel_emb_dim):
         self.ent_embeddings = tf.get_variable(name="ent_embeddings", shape=[num_ent_tags, ent_emb_dim],
                                               initializer=tf.contrib.layers.xavier_initializer(uniform=False))
         self.rel_embeddings = tf.get_variable(name="rel_embeddings", shape=[num_rel_tags, rel_emb_dim],
                                               initializer=tf.contrib.layers.xavier_initializer(uniform=False))
         self.parameter_lists = {"ent_embeddings": self.ent_embeddings,
                                 "rel_embeddings": self.rel_embeddings}
-        self.loss_def()
-        self.predict_def()
 
     def _calc(self, h, t, r):
         h = tf.nn.l2_normalize(h, -1)
@@ -30,7 +24,7 @@ class TransE(TransXModel):
         r = tf.nn.l2_normalize(r, -1)
         return tf.abs(h + r - t)
 
-    def loss_def(self):
+    def forward(self):
         # Obtaining the initial configuration of the model
         # The shapes of pos_h, pos_t, pos_r are (batch_size, 1)
         # The shapes of neg_h, neg_t, neg_r are (batch_size, negative_ent + negative_rel)
@@ -51,9 +45,6 @@ class TransE(TransXModel):
         n_score = tf.reduce_sum(_n_score, -1, keep_dims=True)
         # Calculating loss to get what the framework will optimize
         self.loss = tf.reduce_mean(tf.maximum(p_score - n_score + Config.margin, 0), name="loss")
-        optimizer = tf.train.AdamOptimizer(learning_rate=0.0001)
-        grads_and_vars = optimizer.compute_gradients(self.loss)
-        self.train_op = optimizer.apply_gradients(grads_and_vars, global_step=self.global_step)
 
     def predict_def(self):
         predict_h_e = tf.nn.embedding_lookup(self.ent_embeddings, self.predict_h)
