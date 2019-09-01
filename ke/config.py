@@ -37,13 +37,23 @@ class TrainConfig(DataConfig):
     # model save & load
     load_pretrain = True  # 断点续训
     max_to_keep = 10
-    save_step = 200
+    save_step = 500
     #
     np.random.seed(1234)
 
 
 class Evaluate(TrainConfig):
     load_model_mode = "max_step"
+
+
+class TfConfig(object):
+    """
+        TF_CPP_MIN_LOG_LEVEL 取值 0 ： 0也是默认值，输出所有信息
+        TF_CPP_MIN_LOG_LEVEL 取值 1 ： 屏蔽通知信息
+        TF_CPP_MIN_LOG_LEVEL 取值 2 ： 屏蔽通知信息和警告信息
+        TF_CPP_MIN_LOG_LEVEL 取值 3 ： 屏蔽通知信息、警告信息和报错信息
+    """
+    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # or any {'0', '1', '2'}
 
 
 class Config(Evaluate):

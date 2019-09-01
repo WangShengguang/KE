@@ -1,8 +1,10 @@
+import logging
 from typing import List
 
 import numpy as np
 import tensorflow as tf
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+from tqdm import tqdm
 
 from ke.config import Config
 from ke.data_helper import DataHelper
@@ -37,8 +39,7 @@ class Predictor(object):
         :param batch_r: [0,6,3,...,r_id]
         :return:
         """
-        input_size = len(batch_h)
-        _batch_size = Config.batch_size
+        input_size, _batch_size = len(batch_h), Config.batch_size
         x_data = list(zip(batch_h, batch_t, batch_r)) + [(0, 0, 0)] * (_batch_size - input_size % _batch_size)
         prediction = []
         for input_x in [x_data[i:i + _batch_size] for i in range(0, len(x_data), _batch_size)]:
@@ -115,21 +116,6 @@ class Predictor(object):
         return prediction
 
 
-def get_rank_hit_metrics(y_id, pred_ids):
-    """
-    :type y_id: int
-    :type pred_ids: list
-    """
-    ranking = pred_ids.index(y_id) + 1
-    _matrics = {
-        'MRR': 1.0 / ranking,
-        'MR': float(ranking),
-        'HITS@1': 1.0 if ranking <= 1 else 0.0,
-        'HITS@3': 1.0 if ranking <= 3 else 0.0,
-        'HITS@10': 1.0 if ranking <= 10 else 0.0}
-    return _matrics
-
-
 class Evaluator(Predictor):
     def __init__(self, model_name, data_set, data_type="test", sess=None):
         super().__init__(model_name, data_set, sess)
@@ -142,7 +128,8 @@ class Evaluator(Predictor):
         hits = {1: [], 3: [], 10: []}
         hits_left = {1: [], 3: [], 10: []}
         hits_right = {1: [], 3: [], 10: []}
-        for h, t, r in self.data_helper.data[self.data_type]:
+        logging.info("* test start, {}: {} ".format(self.data_type, len(self.data_helper.data[self.data_type])))
+        for h, t, r in tqdm(self.data_helper.data[self.data_type], desc="Evaluator test"):
             pred_head_ids = self.predict_head_entity(t, r)
             rank_left = pred_head_ids.index(h) + 1
             pred_tail_ids = self.predict_tail_entity(h, r)
@@ -195,7 +182,9 @@ class Evaluator(Predictor):
         链接预测，预测头实体或尾实体
         """
         metrics_li = []
-        for h, t, r in self.data_helper.data[self.data_type]:
+        logging.info("* test_link_prediction start, {}: {} ".format(self.data_type,
+                                                                    len(self.data_helper.data[self.data_type])))
+        for h, t, r in tqdm(self.data_helper.data[self.data_type], desc="test_link_prediction"):
             pred_head_ids = self.predict_head_entity(t, r)
             _metrics = get_rank_hit_metrics(y_id=h, pred_ids=pred_head_ids)
             metrics_li.append(_metrics)
@@ -214,7 +203,11 @@ class Evaluator(Predictor):
     def test_triple_classification(self):
         y_true = []
         y_pred = []
-        for x_batch, y_batch in self.data_helper.batch_iter(data_type=self.data_type, batch_size=128):
+        total = len(self.data_helper.data[self.data_type]) * 2
+        logging.info("* test_triple_classification start, {}: {} ".format(self.data_type, total))
+        for x_batch, y_batch in tqdm(
+                self.data_helper.batch_iter(data_type=self.data_type, batch_size=Config.batch_size),
+                total=total / Config.batch_size, desc="test_triple_classification"):
             prediction = self.predict(batch_h=x_batch[:, 0], batch_t=x_batch[:, 1], batch_r=x_batch[:, 2])
             prediction[prediction >= 0.5] = 1
             prediction[prediction < 0.5] = 0
@@ -226,3 +219,32 @@ class Evaluator(Predictor):
         recall = recall_score(y_true, y_pred)
         f1 = f1_score(y_true, y_pred)
         return accuracy, precision, recall, f1
+
+
+def get_rank_hit_metrics(y_id, pred_ids):
+    """
+    :type y_id: int
+    :type pred_ids: list
+    """
+    ranking = pred_ids.index(y_id) + 1
+    _matrics = {
+        'MRR': 1.0 / ranking,
+        'MR': float(ranking),
+        'HITS@1': 1.0 if ranking <= 1 else 0.0,
+        'HITS@3': 1.0 if ranking <= 3 else 0.0,
+        'HITS@10': 1.0 if ranking <= 10 else 0.0}
+    return _matrics
+
+
+def get_binary_aprf(prediction, y_batch):
+    """accuracy, precision, recall, f1 , APRF"""
+    prediction[prediction >= 0.5] = 1
+    prediction[prediction < 0.5] = 0
+    y_pred = prediction.reshape([-1]).astype(int).tolist()
+    y_batch[y_batch == -1] = 0
+    y_true = y_batch.reshape([-1]).tolist()
+    accuracy = accuracy_score(y_true, y_pred)
+    precision = precision_score(y_true, y_pred)
+    recall = recall_score(y_true, y_pred)
+    f1 = f1_score(y_true, y_pred)
+    return accuracy, precision, recall, f1
