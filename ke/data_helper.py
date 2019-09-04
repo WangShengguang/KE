@@ -63,15 +63,31 @@ class DataHelper(object):
         assert len(positive_samples) == len(negative_samples)
         return positive_samples, negative_samples
 
+    # def batch_iter(self, positive_samples, negative_samples, batch_size, _shuffle=True, neg_label=-1.0):
+    #     x_data = positive_samples + negative_samples
+    #     y_data = [[1.0]] * len(positive_samples) + [[neg_label]] * len(negative_samples)
+    #     data_size = len(x_data)
+    #     order = list(range(data_size))
+    #     if _shuffle:
+    #         np.random.shuffle(order)
+    #     for batch_step in range(data_size // batch_size):
+    #         batch_idxs = order[batch_step * batch_size:(batch_step + 1) * batch_size]
+    #         batch_x = [x_data[idx] for idx in batch_idxs]
+    #         batch_y = [y_data[idx] for idx in batch_idxs]
+    #         yield np.asarray(batch_x), np.asarray(batch_y)
+
     def batch_iter(self, positive_samples, negative_samples, batch_size, _shuffle=True, neg_label=-1.0):
-        x_data = positive_samples + negative_samples
-        y_data = [[1.0]] * len(positive_samples) + [[neg_label]] * len(negative_samples)
-        data_size = len(x_data)
+        data_size = len(positive_samples)
         order = list(range(data_size))
         if _shuffle:
             np.random.shuffle(order)
-        for batch_step in range(data_size // batch_size):
-            batch_idxs = order[batch_step * batch_size:(batch_step + 1) * batch_size]
-            batch_x = [x_data[idx] for idx in batch_idxs]
-            batch_y = [y_data[idx] for idx in batch_idxs]
-            yield np.asarray(batch_x), np.asarray(batch_y)
+        semi_batch_size = (batch_size // 2)
+        for batch_step in range(data_size // semi_batch_size):
+            batch_idxs = order[batch_step * semi_batch_size:(batch_step + 1) * semi_batch_size]
+            if len(batch_idxs) != semi_batch_size:
+                continue
+            _positive_samples = [positive_samples[idx] for idx in batch_idxs]
+            _negative_samples = [negative_samples[idx] for idx in batch_idxs]
+            x_batch = _positive_samples + _negative_samples
+            y_batch = [[1.0]] * semi_batch_size + [[neg_label]] * semi_batch_size
+            yield np.asarray(x_batch), np.asarray(y_batch)

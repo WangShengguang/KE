@@ -55,6 +55,9 @@ class Trainer(object):
             self.best_val_f1 = f1
         else:
             self.patience_counter += 1
+            if loss < self.best_loss:
+                model.saver.save_model(sess, global_step=global_step, loss=loss)
+            self.best_loss = loss
 
     def run(self):
         logging.info("start ... ")

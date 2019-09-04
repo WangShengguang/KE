@@ -36,7 +36,7 @@ class TrainConfig(DataConfig):
     patience_num = 30 * 1000
     # model save & load
     load_pretrain = True  # 断点续训
-    max_to_keep = 10
+    max_to_keep = 2
     save_step = 500
     #
     np.random.seed(1234)
