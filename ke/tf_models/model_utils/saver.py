@@ -41,7 +41,7 @@ class Saver(tf.train.Saver):
             shutil.copyfile(src_config_path, dst_config_path)
             self.config_saved = True
 
-    def save_model(self, sess, global_step, loss=0.0, accuracy=0.0, **kwargs):
+    def save_model(self, sess, global_step, loss=100.0, accuracy=0.0, **kwargs):
         """
         :param sess: TensorFlow Session Object
         :type global_step: tf.Variable or int

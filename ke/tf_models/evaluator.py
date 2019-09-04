@@ -128,7 +128,8 @@ class Evaluator(Predictor):
         hits = {1: [], 3: [], 10: []}
         hits_left = {1: [], 3: [], 10: []}
         hits_right = {1: [], 3: [], 10: []}
-        logging.info("* test start, {}: {} ".format(self.data_type, len(self.data_helper.data[self.data_type])))
+        logging.info("*model:{}, test start, {}: {} ".format(self.model_name, self.data_type,
+                                                             len(self.data_helper.data[self.data_type])))
         for h, t, r in tqdm(self.data_helper.data[self.data_type], desc="Evaluator test"):
             pred_head_ids = self.predict_head_entity(t, r)
             rank_left = pred_head_ids.index(h) + 1
@@ -182,8 +183,8 @@ class Evaluator(Predictor):
         链接预测，预测头实体或尾实体
         """
         metrics_li = []
-        logging.info("* test_link_prediction start, {}: {} ".format(self.data_type,
-                                                                    len(self.data_helper.data[self.data_type])))
+        logging.info("* model:{}, test_link_prediction start, {}: {} ".format(
+            self.model_name, self.data_type, len(self.data_helper.data[self.data_type])))
         for h, t, r in tqdm(self.data_helper.data[self.data_type], desc="test_link_prediction"):
             pred_head_ids = self.predict_head_entity(t, r)
             _metrics = get_rank_hit_metrics(y_id=h, pred_ids=pred_head_ids)
@@ -203,10 +204,12 @@ class Evaluator(Predictor):
     def test_triple_classification(self):
         y_true = []
         y_pred = []
-        total = len(self.data_helper.data[self.data_type]) * 2
-        logging.info("* test_triple_classification start, {}: {} ".format(self.data_type, total))
+        positive_samples, negative_samples = self.data_helper.get_samples(data_type=self.data_type)
+        total = len(positive_samples) + len(negative_samples)
+        logging.info(
+            "* model:{}, test_triple_classification start, {}: {} ".format(self.model_name, self.data_type, total))
         for x_batch, y_batch in tqdm(
-                self.data_helper.batch_iter(data_type=self.data_type, batch_size=Config.batch_size),
+                self.data_helper.batch_iter(positive_samples, negative_samples, batch_size=Config.batch_size),
                 total=total / Config.batch_size, desc="test_triple_classification"):
             prediction = self.predict(batch_h=x_batch[:, 0], batch_t=x_batch[:, 1], batch_r=x_batch[:, 2])
             prediction[prediction >= 0.5] = 1
@@ -238,13 +241,16 @@ def get_rank_hit_metrics(y_id, pred_ids):
 
 def get_binary_aprf(prediction, y_batch):
     """accuracy, precision, recall, f1 , APRF"""
-    prediction[prediction >= 0.5] = 1
-    prediction[prediction < 0.5] = 0
+    prediction[prediction > 0.5] = 1
+    prediction[prediction <= 0.5] = 0
     y_pred = prediction.reshape([-1]).astype(int).tolist()
-    y_batch[y_batch == -1] = 0
+    # y_batch[y_batch == -1] = 0
+    y_batch[y_batch <= 0] = 0
     y_true = y_batch.reshape([-1]).tolist()
     accuracy = accuracy_score(y_true, y_pred)
     precision = precision_score(y_true, y_pred)
     recall = recall_score(y_true, y_pred)
     f1 = f1_score(y_true, y_pred)
+    # import ipdb
+    # ipdb.set_trace()
     return accuracy, precision, recall, f1

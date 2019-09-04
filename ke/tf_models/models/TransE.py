@@ -1,10 +1,10 @@
 import tensorflow as tf
 
 from ke.config import Config
-from ._Model import TransXModel
+from ._Model import Model
 
 
-class TransE(TransXModel):
+class TransE(Model):
     r'''
     TransE is the first model to introduce translation-based embedding,
     which interprets relations as the translations operating on entities.

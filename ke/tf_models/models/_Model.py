@@ -3,7 +3,7 @@ import tensorflow as tf
 from ke.config import Config
 from ke.tf_models.model_utils.saver import Saver
 
-__all__ = ["Model", "TransXModel"]
+__all__ = ["Model"]
 
 
 class NetworkMeta(type):
@@ -69,7 +69,7 @@ class Model(metaclass=NetworkMeta):
         self.backward()  # backward propagate
         self.saver = Saver(max_to_keep=Config.max_to_keep, model_name=self.name,
                            checkpoint_dir=self.checkpoint_dir, relative_dir=self.data_set)
-        # tf.all_variables  # TODO input_x,input_y,loss,train_op,predict
+        # tf.global_variables()  # TODO input_x,input_y,loss,train_op,predict
 
     def input_def(self):
         sequence_length = self.sequence_length
@@ -78,8 +78,17 @@ class Model(metaclass=NetworkMeta):
         # [[10630,4,1715],[1422,4,18765]] h,r,t
         self.input_x = tf.placeholder(tf.int32, [batch_size, sequence_length], name="input_x")
         self.input_y = tf.placeholder(tf.float32, [batch_size, num_classes], name="input_y")  # [[1],[1],[-1]]
-        h, t, r = tf.unstack(self.input_x, axis=1)
-        self.input_x = tf.stack([h, r, t], axis=1)  # 交换了位置
+        self.h, self.t, self.r = tf.unstack(self.input_x, axis=1)
+        self.hrt_input_x = tf.stack([self.h, self.t, self.r], axis=1)  # 交换了位置
+        # for tranX model
+        positive_indices = tf.where(tf.greater(tf.reshape(self.input_y, [-1]), 0.999))
+        negative_indices = tf.where(tf.less(tf.reshape(self.input_y, [-1]), 0.001))  # 0 or 1
+        self.positive_samples = tf.reshape(tf.gather_nd(self.input_x, positive_indices),
+                                           [batch_size // 2, sequence_length])
+        self.negative_samples = tf.reshape(tf.gather_nd(self.input_x, negative_indices),
+                                           [batch_size // 2, sequence_length])
+        self.pos_h, self.pos_t, self.pos_r = tf.unstack(self.positive_samples, axis=1)
+        self.neg_h, self.neg_t, self.neg_r = tf.unstack(self.negative_samples, axis=1)
 
     def embedding_def(self, num_ent_tags, num_rel_tags, ent_emb_dim, rel_emb_dim):
         pass
@@ -94,26 +103,3 @@ class Model(metaclass=NetworkMeta):
         grads_and_vars = optimizer.compute_gradients(self.loss)
         self.train_op = optimizer.apply_gradients(grads_and_vars, global_step=self.global_step)
         return self.train_op
-
-
-class TransXModel(Model):
-    def __init__(self, data_set, num_ent_tags, num_rel_tags, ent_emb_dim=Config.ent_emb_dim,
-                 rel_emb_dim=Config.rel_emb_dim, **kwargs):
-        super().__init__(data_set, num_ent_tags, num_rel_tags, ent_emb_dim, rel_emb_dim, **kwargs)
-
-    def input_def(self):
-        sequence_length = self.sequence_length
-        num_classes = self.num_classes
-        batch_size = self.batch_size
-        # [[10630,4,1715],[1422,4,18765]] h,r,t
-        self.input_x = tf.placeholder(tf.int32, [batch_size, sequence_length], name="input_x")
-        self.input_y = tf.placeholder(tf.float32, [batch_size, num_classes], name="input_y")  # [[1],[1],[-1]]
-        self.h, self.t, self.r = tf.unstack(self.input_x, axis=1)
-        positive_indices = tf.where(tf.greater(tf.reshape(self.input_y, [-1]), 0.999))
-        negative_indices = tf.where(tf.less(tf.reshape(self.input_y, [-1]), 0.001))  # 0 or 1
-        self.positive_samples = tf.reshape(tf.gather_nd(self.input_x, positive_indices),
-                                           [batch_size // 2, sequence_length])
-        self.negative_samples = tf.reshape(tf.gather_nd(self.input_x, negative_indices),
-                                           [batch_size // 2, sequence_length])
-        self.pos_h, self.pos_t, self.pos_r = tf.unstack(self.positive_samples, axis=1)
-        self.neg_h, self.neg_t, self.neg_r = tf.unstack(self.negative_samples, axis=1)

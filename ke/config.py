@@ -21,7 +21,7 @@ class DataConfig(object):
 class TrainConfig(DataConfig):
     sequence_len = 3  # (h,r,t)
     num_classes = 1  # 0 or 1
-    batch_size = 16
+    batch_size = 128  # 16
     epoch_nums = 1000
     # margin loss
     learning_rate = 0.0001
@@ -30,10 +30,10 @@ class TrainConfig(DataConfig):
     ent_emb_dim = 128
     rel_emb_dim = 128
     # early stop
-    max_epoch_nums = 1000
+    max_epoch_nums = 10000
     min_epoch_nums = 5
     patience = 0.001
-    patience_num = 3
+    patience_num = 30 * 1000
     # model save & load
     load_pretrain = True  # 断点续训
     max_to_keep = 10
@@ -43,7 +43,7 @@ class TrainConfig(DataConfig):
 
 
 class Evaluate(TrainConfig):
-    load_model_mode = "max_step"
+    load_model_mode = "min_loss"
 
 
 class TfConfig(object):
@@ -57,4 +57,10 @@ class TfConfig(object):
 
 
 class Config(Evaluate):
-    pass
+    train_count = 50000
+    valid_count = 5000
+    test_count = 10000
+    # np.random.seed(1234)
+    # tf.set_random_seed(1234)
+    # torch.seed(1234)
+    # random.seed(1234)

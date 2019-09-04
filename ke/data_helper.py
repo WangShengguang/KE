@@ -3,7 +3,7 @@ import re
 
 import numpy as np
 
-from ke.config import data_dir
+from ke.config import data_dir, Config
 
 
 class DataHelper(object):
@@ -34,9 +34,11 @@ class DataHelper(object):
             return lines
 
         self.data = {}
+        count_limit = {"train": Config.train_count, "valid": Config.valid_count, "test": Config.test_count}
         for data_type in ["train", "valid", "test"]:
             lines = read_data(f"{data_type}2id.txt")
-            self.data[data_type] = [(int(h), int(t), int(r)) for line in lines for h, t, r in [line.split(" ")]]
+            self.data[data_type] = [(int(h), int(t), int(r)) for line in lines for h, t, r in [line.split(" ")]][
+                                   :count_limit[data_type]]
         lines = read_data("entity2id.txt")
         self.entity2id = {entity: int(id) for line in lines for entity, id in [line.split(" ")]}
         lines = read_data("relation2id.txt")
@@ -61,23 +63,15 @@ class DataHelper(object):
         assert len(positive_samples) == len(negative_samples)
         return positive_samples, negative_samples
 
-    def batch_iter(self, data_type, batch_size, _shuffle=True, neg_label=-1):
-        positive_samples, negative_samples = self.get_samples(data_type)
-        data_size = len(positive_samples)
+    def batch_iter(self, positive_samples, negative_samples, batch_size, _shuffle=True, neg_label=-1.0):
+        x_data = positive_samples + negative_samples
+        y_data = [[1.0]] * len(positive_samples) + [[neg_label]] * len(negative_samples)
+        data_size = len(x_data)
         order = list(range(data_size))
         if _shuffle:
             np.random.shuffle(order)
-        _batch_size = (batch_size // 2)
-        for batch_step in range(data_size // _batch_size):
-            # fetch sentences and tags
-            batch_idxs = order[batch_step * _batch_size:(batch_step + 1) * _batch_size]
-            _positive_samples = [positive_samples[idx] for idx in batch_idxs]
-            _negative_samples = [negative_samples[idx] for idx in batch_idxs]
-            x_batch, y_batch = [], []
-            for (h, t, r) in _positive_samples:
-                x_batch.append((h, t, r))
-                y_batch.append([1])
-            for (h, t, r) in _negative_samples:
-                x_batch.append((h, t, r))
-                y_batch.append([neg_label])
-            yield np.asarray(x_batch), np.asarray(y_batch)
+        for batch_step in range(data_size // batch_size):
+            batch_idxs = order[batch_step * batch_size:(batch_step + 1) * batch_size]
+            batch_x = [x_data[idx] for idx in batch_idxs]
+            batch_y = [y_data[idx] for idx in batch_idxs]
+            yield np.asarray(batch_x), np.asarray(batch_y)

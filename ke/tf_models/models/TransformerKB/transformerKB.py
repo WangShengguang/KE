@@ -93,45 +93,60 @@ class TransformerKB(Model):
                                        vocab_size=self.vocab_size, d_model=self.embedding_dim)
         super().__init__(data_set=data_set, num_ent_tags=num_ent_tags, num_rel_tags=num_rel_tags)
 
-    def embedding_def(self, num_ent_tags, num_rel_tags, ent_emb_dim, rel_emb_dim):
+    # def embedding_def(self, num_ent_tags, num_rel_tags, ent_emb_dim, rel_emb_dim):
+    #     self.total_dims = self.sequence_len * self.embedding_dim
+    #     with tf.variable_scope("output_W", reuse=tf.AUTO_REUSE):
+    #         self.W = tf.get_variable(
+    #             "W",
+    #             shape=[self.total_dims, self.num_classes],
+    #             initializer=tf.contrib.layers.xavier_initializer(seed=1234))
+    #         self.b = tf.Variable(tf.constant(0.0, shape=[self.num_classes]), name="b")
+
+    def forward(self):
+        l2_reg_lambda = 0.001
+        dropout_keep_prob = 0.8
+        l2_loss = tf.constant(0.0)
+        self.encoded = self.transformer.encode(self.hrt_input_x)  # (batch_size, 3, 128)
         self.total_dims = self.sequence_len * self.embedding_dim
+        self.encoded_flatten = tf.reshape(self.encoded, [-1, self.total_dims])
+        self.h_drop = tf.nn.dropout(self.encoded_flatten, dropout_keep_prob)
         with tf.variable_scope("output_W", reuse=tf.AUTO_REUSE):
             self.W = tf.get_variable(
                 "W",
                 shape=[self.total_dims, self.num_classes],
                 initializer=tf.contrib.layers.xavier_initializer(seed=1234))
             self.b = tf.Variable(tf.constant(0.0, shape=[self.num_classes]), name="b")
-
-    def forward(self):
-        l2_reg_lambda = 0.001
-        dropout_keep_prob = 0.8
-        l2_loss = tf.constant(0.0)
-        self.encoded = self.transformer.encode(self.input_x)  # (batch_size, 3, 128)
-        self.encoded_flatten = tf.reshape(self.encoded, [-1, self.total_dims])
-        self.h_drop = tf.nn.dropout(self.encoded_flatten, dropout_keep_prob)
+            l2_loss += tf.nn.l2_loss(self.W)
+            l2_loss += tf.nn.l2_loss(self.b)
         self.scores = tf.nn.xw_plus_b(self.h_drop, self.W, self.b, name="scores")
-        self.predict = tf.nn.sigmoid(self.scores, name="predict")
+        self.predict = tf.nn.sigmoid(-self.scores, name="predict")
         # Calculate loss
-        l2_loss += tf.nn.l2_loss(self.W)
-        l2_loss += tf.nn.l2_loss(self.b)
         losses = tf.nn.softplus(self.scores * self.input_y)
         self.loss = tf.reduce_mean(losses) + l2_reg_lambda * l2_loss
 
-    def forward_new(self):
-        l2_reg_lambda = 0.001
-        l2_loss = tf.constant(0.0)
-        self.encoded = self.transformer.encode(self.input_x)  # (batch_size, 3, 128)
-        # encoded = tf.layers.batch_normalization(self.encoded)
-        self.outputs = tf.reshape(self.encoded, [-1, self.total_dims])
-        self.outputs = tf.nn.dropout(self.outputs, keep_prob=0.8)
-        # 全连接层的输出
-        l2_loss += tf.nn.l2_loss(self.W)
-        l2_loss += tf.nn.l2_loss(self.b)
-        self.logits = tf.nn.xw_plus_b(self.outputs, self.W, self.b, name="logits")
-        self.predict = tf.cast(tf.greater_equal(self.logits, 0.0), tf.float32, name="predict")
-
-        losses = tf.nn.sigmoid_cross_entropy_with_logits(logits=self.logits,
-                                                         labels=tf.cast(tf.reshape(self.input_y, [-1, 1]),
-                                                                        dtype=tf.float32))
-        self.loss = tf.reduce_mean(losses) + l2_reg_lambda * l2_loss
-        # tf.clip_by_value(y_conv,1e-15,1.0)
+    # def forward_new(self):
+    #     pooled_outputs = []
+    #     dropout_keep_prob = 0.8
+    #     l2_loss = 0
+    #     self.h_pool = tf.concat(pooled_outputs, 2)
+    #     self.h_pool_flat = tf.reshape(self.h_pool, [-1, self.total_dims])
+    #
+    #     # Add dropout
+    #     with tf.name_scope("dropout"):
+    #         self.h_drop = tf.nn.dropout(self.h_pool_flat, dropout_keep_prob)
+    #
+    #         # Final (unnormalized) scores and predictions
+    #     with tf.name_scope("output"):
+    #         W = tf.get_variable(
+    #             "W",
+    #             shape=[self.total_dims, self.num_classes],
+    #             initializer=tf.contrib.layers.xavier_initializer(seed=1234))
+    #         b = tf.Variable(tf.constant(0.0, shape=[self.num_classes]), name="b")
+    #         l2_loss += tf.nn.l2_loss(W)
+    #         l2_loss += tf.nn.l2_loss(b)
+    #         self.scores = tf.nn.xw_plus_b(self.h_drop, W, b, name="scores")
+    #     self.predict = tf.nn.sigmoid(self.scores, name="predict")
+    #     # Calculate loss
+    #     with tf.name_scope("loss"):
+    #         losses = tf.nn.softplus(self.scores * self.input_y)
+    #         self.loss = tf.reduce_mean(losses) + l2_reg_lambda * l2_loss
