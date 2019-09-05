@@ -49,9 +49,9 @@ def main():
                        help="测试")
     # parse args
     args = parser.parse_args()
-    # available_gpu = get_available_gpu(num_gpu=1, allow_gpus=args.allow_gpus)  # default allow_gpus 0,1,2,3
-    # os.environ["CUDA_VISIBLE_DEVICES"] = available_gpu
-    # print("* using GPU: {} ".format(available_gpu))  # config前不可logging，否则config失效
+    available_gpu = get_available_gpu(num_gpu=1, allow_gpus=args.allow_gpus)  # default allow_gpus 0,1,2,3
+    os.environ["CUDA_VISIBLE_DEVICES"] = available_gpu
+    print("* using GPU: {} ".format(available_gpu))  # config前不可logging，否则config失效
     #
     if args.train:
         train(model_name=args.train, data_set=args.dataset)

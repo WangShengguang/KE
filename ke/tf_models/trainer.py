@@ -100,7 +100,6 @@ class Trainer(object):
                                                                model.input_y: y_batch})
                     if global_step % Config.save_step == 0:
                         logging.info(" step:{}, loss: {:.4f}".format(global_step, loss))
-                        print(" step:{}, loss: {:.4f}".format(global_step, loss))
                     # predict = sess.run(model.predict, feed_dict={model.input_x: x_batch, model.input_y: y_batch})
                     # import ipdb
                     # ipdb.set_trace()
