@@ -21,11 +21,11 @@ class DataConfig(object):
 class TrainConfig(DataConfig):
     sequence_len = 3  # (h,r,t)
     num_classes = 1  # 0 or 1
-    batch_size = 128  # 16
+    batch_size = 16
     epoch_nums = 1000
     # margin loss
     learning_rate = 0.0001
-    margin = 6.0
+    margin = 1.0
     #
     ent_emb_dim = 128
     rel_emb_dim = 128
@@ -44,6 +44,7 @@ class TrainConfig(DataConfig):
 
 class Evaluate(TrainConfig):
     load_model_mode = "min_loss"
+    # load_model_mode = "max_acc"  # mrr
 
 
 class TfConfig(object):

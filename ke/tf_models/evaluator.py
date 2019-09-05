@@ -62,7 +62,7 @@ class Predictor(object):
         test_r = [r] * self.entity_nums
         test_t = [t] * self.entity_nums
         predictions = self.predict(test_h, test_t, test_r)
-        head_ids = predictions.flatten().argsort()[::-1].tolist()
+        head_ids = predictions.flatten().argsort().tolist()  # dist越小越相似
         # print(head_ids)
         return head_ids
 
@@ -80,7 +80,7 @@ class Predictor(object):
         test_r = [r] * self.entity_nums
         test_t = list(range(self.entity_nums))
         predictions = self.predict(test_h, test_t, test_r)
-        tail_ids = predictions.flatten().argsort()[::-1].tolist()
+        tail_ids = predictions.flatten().argsort().tolist()  # dist越小越相似
         # print(tail_ids)
         return tail_ids
 
@@ -99,7 +99,7 @@ class Predictor(object):
         test_r = list(range(self.relation_nums))
         test_t = [t] * self.relation_nums
         predictions = self.predict(test_h, test_t, test_r)
-        relations = predictions.flatten().argsort()[::-1].tolist()
+        relations = predictions.flatten().argsort().tolist()  # dist越小越相似
         # print(relations)
         return relations
 
@@ -120,6 +120,56 @@ class Evaluator(Predictor):
     def __init__(self, model_name, data_set, data_type="test", sess=None):
         super().__init__(model_name, data_set, sess)
         self.data_type = data_type
+
+    def get_valid_lr(self):
+        valid_count = len(self.data_helper.data[self.data_type])
+        valid_left, valid_right = {}, {}
+        valid_samples = self.data_helper.data[self.data_type]  # [(h,t,r)]
+        for i in range(valid_count):
+            if (valid_samples[i][-1] != valid_samples[i - 1][-1]):
+                valid_right[valid_samples[i - 1][-1]] = i - 1
+                valid_left[valid_samples[i][-1]] = i
+        valid_left[valid_samples[0][-1]] = 0
+        valid_right[valid_samples[valid_count - 1][-1]] = valid_count - 1
+        return valid_left, valid_right
+
+    def get_best_threshold(self, positives_score, negatives_score):
+        interval = 0.01
+        bestAcc, max_score, min_score = 0.0, 0.0, 1000
+        bestThresh = 0.0
+        rel_threshold = {}
+        valid_left, valid_right = self.get_valid_lr()
+        for r in self.data_helper.relation2id.values():
+            if valid_left[r] == -1:
+                continue
+            total = (valid_right[r] - valid_left[r] + 1) * 2
+
+            min_score = min(min_score, negatives_score[valid_left[r]])
+            max_score = max(max_score, positives_score[valid_left[r]])
+            for i in range(valid_left[r] + 1, valid_right[r] + 1):
+                min_score = min(min_score, positives_score[i], negatives_score[i])
+                max_score = max(max_score, positives_score[i], negatives_score[i])
+
+            n_interval = int((max_score - min_score) / interval)
+            for i in range(n_interval + 1):
+                tmpThresh = min_score + i * interval
+                correct = 0
+                for j in range(valid_left[r], valid_right[r] + 1):
+                    if (positives_score[j] <= tmpThresh):
+                        correct += 1
+                    if (negatives_score[j] > tmpThresh):
+                        correct += 1
+
+                tmpAcc = 1.0 * correct / total
+                if i == 0:
+                    bestThresh = tmpThresh
+                    bestAcc = tmpAcc
+                elif tmpAcc > bestAcc:
+                    bestAcc = tmpAcc
+                    bestThresh = tmpThresh
+
+            rel_threshold[r] = bestThresh
+        return rel_threshold
 
     def test(self):
         ranks = []
@@ -195,16 +245,22 @@ class Evaluator(Predictor):
         metrics = {}
         for metric_name in metrics_li[0].keys():
             metrics[metric_name] = sum([_metrics[metric_name] for _metrics in metrics_li]) / len(metrics_li)
-        mr, mrr, hit_1, hit_3, hit_10 = (metrics["MR"], metrics["MRR"],
+        mr, mrr, hit_10, hit_3, hit_1 = (metrics["MR"], metrics["MRR"],
                                          metrics["HITS@10"], metrics["HITS@3"], metrics["HITS@1"])
         # logging.info("mr:{:.4f}, mrr:{:.4f}, hit_1:{:.4f}, hit_3:{:.4f}, hit_10:{:.4f}".format(
         #     mr, mrr, hit_1, hit_3, hit_10))
-        return mr, mrr, hit_1, hit_3, hit_10
+        return mr, mrr,  hit_10, hit_3, hit_1
 
     def test_triple_classification(self):
         y_true = []
         y_pred = []
         positive_samples, negative_samples = self.data_helper.get_samples(data_type=self.data_type)
+        _positive_samples, _negative_samples = np.asarray(positive_samples), np.asarray(negative_samples)
+        positive_score = self.predict(batch_h=_positive_samples[:, 0], batch_t=_positive_samples[:, 1],
+                                      batch_r=_positive_samples[:, 2])
+        negative_score = self.predict(batch_h=_negative_samples[:, 0], batch_t=_negative_samples[:, 1],
+                                      batch_r=_negative_samples[:, 2])
+        rel_threshold = self.get_best_threshold(positive_score, negative_score)
         total = len(positive_samples) + len(negative_samples)
         logging.info(
             "* model:{}, test_triple_classification start, {}: {} ".format(self.model_name, self.data_type, total))
@@ -212,10 +268,11 @@ class Evaluator(Predictor):
                 self.data_helper.batch_iter(positive_samples, negative_samples, batch_size=Config.batch_size),
                 total=total / Config.batch_size, desc="test_triple_classification"):
             prediction = self.predict(batch_h=x_batch[:, 0], batch_t=x_batch[:, 1], batch_r=x_batch[:, 2])
-            prediction[prediction >= 0.5] = 1
-            prediction[prediction < 0.5] = 0
-            y_pred.extend(prediction.reshape([-1]).astype(int).tolist())
-            y_batch[y_batch == -1] = 0
+            for i, _pred in enumerate(prediction.reshape([-1]).astype(int).tolist()):
+                _threshold = rel_threshold[x_batch[i][2]]  # 越小越相似，为正样例
+                pred = 1 if _pred < _threshold else 0
+                y_pred.append(pred)
+            y_batch[y_batch <= 0] = 0
             y_true.extend(y_batch.reshape([-1]).tolist())
         accuracy = accuracy_score(y_true, y_pred)
         precision = precision_score(y_true, y_pred)
@@ -238,19 +295,19 @@ def get_rank_hit_metrics(y_id, pred_ids):
         'HITS@10': 1.0 if ranking <= 10 else 0.0}
     return _matrics
 
-
-def get_binary_aprf(prediction, y_batch):
-    """accuracy, precision, recall, f1 , APRF"""
-    prediction[prediction > 0.5] = 1
-    prediction[prediction <= 0.5] = 0
-    y_pred = prediction.reshape([-1]).astype(int).tolist()
-    # y_batch[y_batch == -1] = 0
-    y_batch[y_batch <= 0] = 0
-    y_true = y_batch.reshape([-1]).tolist()
-    accuracy = accuracy_score(y_true, y_pred)
-    precision = precision_score(y_true, y_pred)
-    recall = recall_score(y_true, y_pred)
-    f1 = f1_score(y_true, y_pred)
-    # import ipdb
-    # ipdb.set_trace()
-    return accuracy, precision, recall, f1
+# def get_binary_aprf(y_batch, prediction, threshold=0.5):
+#     """accuracy, precision, recall, f1 , APRF"""
+#     prediction = prediction.copy()
+#     prediction[prediction > threshold] = 1
+#     prediction[prediction <= threshold] = 0
+#     y_pred = prediction.reshape([-1]).astype(int).tolist()
+#     # y_batch[y_batch == -1] = 0
+#     y_batch[y_batch <= 0] = 0
+#     y_true = y_batch.reshape([-1]).tolist()
+#     accuracy = accuracy_score(y_true, y_pred)
+#     precision = precision_score(y_true, y_pred)
+#     recall = recall_score(y_true, y_pred)
+#     f1 = f1_score(y_true, y_pred)
+#     # import ipdb
+#     # ipdb.set_trace()
+#     return accuracy, precision, recall, f1

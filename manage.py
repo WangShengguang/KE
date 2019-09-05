@@ -16,7 +16,7 @@ def test(model_name, data_set):
     logging_config("{}-{}-test .log".format(model_name, data_set))
     from ke.tf_models.evaluator import Evaluator
     evaluator = Evaluator(model_name, data_set, data_type="test")
-    mr, mrr, hit_1, hit_3, hit_10 = evaluator.test_link_prediction()
+    mr, mrr, hit_10, hit_3, hit_1 = evaluator.test_link_prediction()
     rank_metrics = "\n*model:{}, mrr:{:.4f}, mr:{:.4f}, hit_10:{:.4f}, hit_3:{:.4f}, hit_1:{:.4f}\n".format(
         model_name, mrr, mr, hit_10, hit_3, hit_1)
     print(rank_metrics)

@@ -4,6 +4,7 @@ import re
 import numpy as np
 
 from ke.config import data_dir, Config
+from sklearn.utils import shuffle
 
 
 class DataHelper(object):
@@ -15,7 +16,7 @@ class DataHelper(object):
                 entity2id.txt, relation2id.txt
         """
         self.data_set = data_set  # 数据集名称
-        self.data = {}  # {"train": [(e,r,t), ...], "valid":  [(e,r,t), ...], "test":  [(e,r,t), ...]}
+        self.data = {}  # {"train": [(h,t,r), ...], "valid":  [(h,t,r), ...], "test":  [(h,t,r), ...]}
         self.entity2id = {}
         self.relation2id = {}
         self.load_data()
@@ -34,7 +35,7 @@ class DataHelper(object):
             return lines
 
         self.data = {}
-        count_limit = {"train": Config.train_count, "valid": Config.valid_count, "test": Config.test_count}
+        count_limit = {"train": Config.train_count, "valid": Config.valid_count, "test": Config.test_count}  # 样本数限制
         for data_type in ["train", "valid", "test"]:
             lines = read_data(f"{data_type}2id.txt")
             self.data[data_type] = [(int(h), int(t), int(r)) for line in lines for h, t, r in [line.split(" ")]][
@@ -53,9 +54,9 @@ class DataHelper(object):
         entity_ids = list(self.entity2id.values())
         negative_samples = []
         for h, t, r in positive_samples:
-            while (h, t, r) in pos_samples_set:  # TODO replace r，not only h,t
+            while (h, t, r) in pos_samples_set:
                 e = np.random.choice(entity_ids)
-                if np.random.choice([True, False]):
+                if np.random.randint(0, 2):  # [0,1]
                     h = e
                 else:
                     t = e
@@ -63,20 +64,7 @@ class DataHelper(object):
         assert len(positive_samples) == len(negative_samples)
         return positive_samples, negative_samples
 
-    # def batch_iter(self, positive_samples, negative_samples, batch_size, _shuffle=True, neg_label=-1.0):
-    #     x_data = positive_samples + negative_samples
-    #     y_data = [[1.0]] * len(positive_samples) + [[neg_label]] * len(negative_samples)
-    #     data_size = len(x_data)
-    #     order = list(range(data_size))
-    #     if _shuffle:
-    #         np.random.shuffle(order)
-    #     for batch_step in range(data_size // batch_size):
-    #         batch_idxs = order[batch_step * batch_size:(batch_step + 1) * batch_size]
-    #         batch_x = [x_data[idx] for idx in batch_idxs]
-    #         batch_y = [y_data[idx] for idx in batch_idxs]
-    #         yield np.asarray(batch_x), np.asarray(batch_y)
-
-    def batch_iter(self, positive_samples, negative_samples, batch_size, _shuffle=True, neg_label=-1.0):
+    def mix_batch_iter(self, positive_samples, negative_samples, batch_size, _shuffle=True, neg_label=-1.0):
         data_size = len(positive_samples)
         order = list(range(data_size))
         if _shuffle:
@@ -91,3 +79,41 @@ class DataHelper(object):
             x_batch = _positive_samples + _negative_samples
             y_batch = [[1.0]] * semi_batch_size + [[neg_label]] * semi_batch_size
             yield np.asarray(x_batch), np.asarray(y_batch)
+
+    def concat_batch_iter(self, positive_samples, negative_samples, batch_size, _shuffle=True, neg_label=-1.0):
+        if _shuffle:
+            positive_samples, negative_samples = shuffle(positive_samples, negative_samples)
+        x_data = positive_samples + negative_samples
+        y_data = [[1.0]] * len(positive_samples) + [[neg_label]] * len(negative_samples)
+        data_size = len(x_data)
+        order = list(range(data_size))
+        for batch_step in range(data_size // batch_size):
+            batch_idxs = order[batch_step * batch_size:(batch_step + 1) * batch_size]
+            if len(batch_idxs) != batch_size:
+                continue
+            x_batch = [x_data[idx] for idx in batch_idxs]
+            y_batch = [y_data[idx] for idx in batch_idxs]
+            yield np.asarray(x_batch), np.asarray(y_batch)
+
+    def batch_iter(self, positive_samples, negative_samples, batch_size, mode, _shuffle=True, neg_label=-1.0):
+        """
+        :param positive_samples:
+        :param negative_samples:
+        :param batch_size:
+        :param mode:  mix,concat
+                     mix: x_batch = [positive+neggtive]
+                     concat :x_batch = [positive] + [negtive]
+        :param _shuffle:
+        :param neg_label:
+        :return:
+        """
+        if mode == "mix":
+            for x_batch, y_batch in self.mix_batch_iter(positive_samples, negative_samples, batch_size,
+                                                        _shuffle=True, neg_label=-1.0):
+                yield x_batch, y_batch
+        elif mode == "concat":
+            for x_batch, y_batch in self.concat_batch_iter(positive_samples, negative_samples, batch_size,
+                                                           _shuffle=True, neg_label=-1.0):
+                yield x_batch, y_batch
+        else:
+            raise ValueError(mode)
