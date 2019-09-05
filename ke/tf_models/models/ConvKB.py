@@ -69,7 +69,7 @@ class ConvKB(Model):
             l2_loss += tf.nn.l2_loss(W)
             l2_loss += tf.nn.l2_loss(b)
             self.scores = tf.nn.xw_plus_b(self.h_drop, W, b, name="scores")
-        self.predict = tf.nn.sigmoid(-self.scores, name="predict")
+        self.predict = tf.nn.sigmoid(self.scores, name="predict")
         # Calculate loss
         losses = tf.nn.softplus(self.scores * self.input_y)
         self.loss = tf.reduce_mean(losses) + self.l2_reg_lambda * l2_loss

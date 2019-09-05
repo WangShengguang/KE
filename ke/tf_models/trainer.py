@@ -27,9 +27,9 @@ class Trainer(object):
         num_ent_tags = len(self.data_helper.entity2id)
         num_rel_tags = len(self.data_helper.relation2id)
         if self.model_name == "ConvKB":
-            model = ConvKB(self.data_set, num_ent_tags, num_rel_tags, 50, 50)
+            model = ConvKB(self.data_set, num_ent_tags, num_rel_tags, Config.ent_emb_dim, Config.rel_emb_dim)
         elif self.model_name == "TransformerKB":
-            model = TransformerKB(self.data_set, num_ent_tags, num_rel_tags, embedding_dim=50)
+            model = TransformerKB(self.data_set, num_ent_tags, num_rel_tags, embedding_dim=Config.ent_emb_dim)
         elif self.model_name == "TransE":
             model = TransE(self.data_set, num_ent_tags, num_rel_tags)
         else:
@@ -40,17 +40,17 @@ class Trainer(object):
         # with torch.no_grad():  # 适用于测试阶段，不需要反向传播
         if self.evaluator is None:
             self.evaluator = Evaluator(model_name=self.model_name, data_set=self.data_set, data_type="valid")
-        test_link_predict = True
-        test_triple_classification = False
+        test_link_predict = False
         if test_link_predict:
             mr, mrr, hit_10, hit_3, hit_1 = self.evaluator.test_link_prediction()
             rank_metrics = "\n*model:{}, mrr:{:.4f}, mr:{:.4f}, hit_10:{:.4f}, hit_3:{:.4f}, hit_1:{:.4f}\n".format(
                 self.model_name, mrr, mr, hit_10, hit_3, hit_1)
-            print(rank_metrics)
             logging.info(rank_metrics)
+            print(rank_metrics)
             if mr > self.best_mr:
                 model.saver.save_model(sess, global_step=global_step, accuracy=mrr)
             self.best_mr = mr
+        test_triple_classification = False
         if test_triple_classification:
             acc, precision, recall, f1 = self.evaluator.test_triple_classification()
             logging.info("valid acc: {:.4f}, precision: {:.4f}, recall: {:.4f}, f1: {:.4f}".format(
@@ -67,7 +67,13 @@ class Trainer(object):
                 self.patience_counter += 1
         if loss < self.best_loss:
             model.saver.save_model(sess, global_step=global_step, loss=loss)
-        self.best_loss = loss
+            if loss - self.best_loss < Config.patience:
+                self.patience_counter += 1
+            else:
+                self.patience_counter = 0
+            self.best_loss = loss
+        else:
+            self.patience_counter += 1
 
     def run(self):
         logging.info("start ... ")
@@ -84,22 +90,22 @@ class Trainer(object):
                 if model_path:
                     print("* Model load from file: {}".format(model_path))
             logging.info("{} start train ...".format(self.model_name))
-            mode = "concat" if self.model_name in other_models else "mix"
-            positive_samples, negative_samples = self.data_helper.get_samples(data_type="train")
+            # mode = "concat" if self.model_name in other_models else "mix"
             for epoch_num in trange(Config.epoch_nums, desc="train epoch num"):
-                for x_batch, y_batch in self.data_helper.batch_iter(positive_samples, negative_samples,
-                                                                    batch_size=Config.batch_size, mode=mode,
+                for x_batch, y_batch in self.data_helper.batch_iter(data_type="train",
+                                                                    batch_size=Config.batch_size,
                                                                     neg_label=-1.0, _shuffle=True):
                     _, global_step, loss = sess.run([model.train_op, model.global_step, model.loss],
                                                     feed_dict={model.input_x: x_batch,
                                                                model.input_y: y_batch})
-                    if global_step % Config.save_step:
+                    if global_step % Config.save_step == 0:
                         logging.info(" step:{}, loss: {:.4f}".format(global_step, loss))
+                        print(" step:{}, loss: {:.4f}".format(global_step, loss))
                     # predict = sess.run(model.predict, feed_dict={model.input_x: x_batch, model.input_y: y_batch})
+                    # import ipdb
+                    # ipdb.set_trace()
                 self.test(sess, model, global_step, loss)
                 logging.info("epoch {} end ...".format(epoch_num))
-                # import ipdb
-                # ipdb.set_trace()
                 # Early stopping and logging best f1
                 if (self.patience_counter >= Config.patience_num and epoch_num > Config.min_epoch_nums) \
                         or epoch_num == Config.max_epoch_nums:

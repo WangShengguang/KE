@@ -249,12 +249,13 @@ class Evaluator(Predictor):
                                          metrics["HITS@10"], metrics["HITS@3"], metrics["HITS@1"])
         # logging.info("mr:{:.4f}, mrr:{:.4f}, hit_1:{:.4f}, hit_3:{:.4f}, hit_10:{:.4f}".format(
         #     mr, mrr, hit_1, hit_3, hit_10))
-        return mr, mrr,  hit_10, hit_3, hit_1
+        return mr, mrr, hit_10, hit_3, hit_1
 
     def test_triple_classification(self):
         y_true = []
         y_pred = []
-        positive_samples, negative_samples = self.data_helper.get_samples(data_type=self.data_type)
+        positive_samples, negative_samples = [], []
+        # todo get positive_samples, negative_samples
         _positive_samples, _negative_samples = np.asarray(positive_samples), np.asarray(negative_samples)
         positive_score = self.predict(batch_h=_positive_samples[:, 0], batch_t=_positive_samples[:, 1],
                                       batch_r=_positive_samples[:, 2])
@@ -265,7 +266,7 @@ class Evaluator(Predictor):
         logging.info(
             "* model:{}, test_triple_classification start, {}: {} ".format(self.model_name, self.data_type, total))
         for x_batch, y_batch in tqdm(
-                self.data_helper.batch_iter(positive_samples, negative_samples, batch_size=Config.batch_size),
+                self.data_helper.batch_iter(data_type=self.data_type, batch_size=Config.batch_size),
                 total=total / Config.batch_size, desc="test_triple_classification"):
             prediction = self.predict(batch_h=x_batch[:, 0], batch_t=x_batch[:, 1], batch_r=x_batch[:, 2])
             for i, _pred in enumerate(prediction.reshape([-1]).astype(int).tolist()):

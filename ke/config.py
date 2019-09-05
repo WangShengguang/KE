@@ -21,7 +21,7 @@ class DataConfig(object):
 class TrainConfig(DataConfig):
     sequence_len = 3  # (h,r,t)
     num_classes = 1  # 0 or 1
-    batch_size = 16
+    batch_size = 8
     epoch_nums = 1000
     # margin loss
     learning_rate = 0.0001
@@ -32,14 +32,15 @@ class TrainConfig(DataConfig):
     # early stop
     max_epoch_nums = 10000
     min_epoch_nums = 5
-    patience = 0.001
-    patience_num = 30 * 1000
+    patience = 0.0001
+    patience_num = 5
     # model save & load
     load_pretrain = True  # 断点续训
     max_to_keep = 2
-    save_step = 500
+    save_step = 100
     #
-    np.random.seed(1234)
+    random_seed = 1234
+    np.random.seed(random_seed)
 
 
 class Evaluate(TrainConfig):

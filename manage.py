@@ -21,11 +21,11 @@ def test(model_name, data_set):
         model_name, mrr, mr, hit_10, hit_3, hit_1)
     print(rank_metrics)
     logging.info(rank_metrics)
-    accuracy, precision, recall, f1 = evaluator.test_triple_classification()
-    _metrics = "\nmodel:{}, accuracy:{:.4f}, precision:{:.4f}, recall:{:.4f}, f1:{:.4f}\n".format(
-        model_name, accuracy, precision, recall, f1)
-    print(_metrics)
-    logging.info(_metrics)
+    # accuracy, precision, recall, f1 = evaluator.test_triple_classification()
+    # _metrics = "\nmodel:{}, accuracy:{:.4f}, precision:{:.4f}, recall:{:.4f}, f1:{:.4f}\n".format(
+    #     model_name, accuracy, precision, recall, f1)
+    # print(_metrics)
+    # logging.info(_metrics)
 
 
 def main():
