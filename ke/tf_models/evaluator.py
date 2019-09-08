@@ -178,9 +178,10 @@ class Evaluator(Predictor):
         hits = {1: [], 3: [], 10: []}
         hits_left = {1: [], 3: [], 10: []}
         hits_right = {1: [], 3: [], 10: []}
-        logging.info("*model:{}, test start, {}: {} ".format(self.model_name, self.data_type,
-                                                             len(self.data_helper.data[self.data_type])))
-        for h, t, r in tqdm(self.data_helper.data[self.data_type], desc="Evaluator test"):
+        total = len(self.data_helper.data[self.data_type])
+        logging.info("*model:{}, test start, {}: {} ".format(self.model_name, self.data_type, total))
+        for step, (h, t, r) in enumerate(tqdm(self.data_helper.data[self.data_type],
+                                              desc="{} Evaluator test".format(self.model_name))):
             pred_head_ids = self.predict_head_entity(t, r)
             rank_left = pred_head_ids.index(h) + 1
             pred_tail_ids = self.predict_tail_entity(h, r)
@@ -208,6 +209,7 @@ class Evaluator(Predictor):
             elif rank_right <= 10:
                 hits[10].append(1)
                 hits_right[1].append(1)
+            logging.info("*model:{}, test step: {}/{}".format(self.model_name, step, total))
         for k in [1, 3, 10]:
             hits[k] = np.mean(hits[k])
         # MR
@@ -233,15 +235,17 @@ class Evaluator(Predictor):
         链接预测，预测头实体或尾实体
         """
         metrics_li = []
-        logging.info("* model:{}, test_link_prediction start, {}: {} ".format(
-            self.model_name, self.data_type, len(self.data_helper.data[self.data_type])))
-        for h, t, r in tqdm(self.data_helper.data[self.data_type], desc="test_link_prediction"):
+        total = len(self.data_helper.data[self.data_type])
+        logging.info("* model:{}, test_link_prediction start, {}: {} ".format(self.model_name, self.data_type, total))
+        for step, (h, t, r) in enumerate(tqdm(self.data_helper.data[self.data_type],
+                                              desc="{} test_link_prediction".format(self.model_name))):
             pred_head_ids = self.predict_head_entity(t, r)
             _metrics = get_rank_hit_metrics(y_id=h, pred_ids=pred_head_ids)
             metrics_li.append(_metrics)
             pred_tail_ids = self.predict_tail_entity(h, r)
             _metrics = get_rank_hit_metrics(y_id=t, pred_ids=pred_tail_ids)
             metrics_li.append(_metrics)
+            logging.info("*model:{}, test_link_prediction step: {}/{}".format(self.model_name, step, total))
         metrics = {}
         for metric_name in metrics_li[0].keys():
             metrics[metric_name] = sum([_metrics[metric_name] for _metrics in metrics_li]) / len(metrics_li)
@@ -267,7 +271,7 @@ class Evaluator(Predictor):
             "* model:{}, test_triple_classification start, {}: {} ".format(self.model_name, self.data_type, total))
         for x_batch, y_batch in tqdm(
                 self.data_helper.batch_iter(data_type=self.data_type, batch_size=Config.batch_size),
-                total=total / Config.batch_size, desc="test_triple_classification"):
+                total=total / Config.batch_size, desc="{} test_triple_classification".format(self.model_name)):
             prediction = self.predict(batch_h=x_batch[:, 0], batch_t=x_batch[:, 1], batch_r=x_batch[:, 2])
             for i, _pred in enumerate(prediction.reshape([-1]).astype(int).tolist()):
                 _threshold = rel_threshold[x_batch[i][2]]  # 越小越相似，为正样例

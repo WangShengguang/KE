@@ -59,9 +59,9 @@ class TfConfig(object):
 
 
 class Config(Evaluate):
-    train_count = 50000
-    valid_count = 5000
-    test_count = 10000
+    train_count = -1  # all count
+    valid_count = 1000
+    test_count = 100
     # np.random.seed(1234)
     # tf.set_random_seed(1234)
     # torch.seed(1234)

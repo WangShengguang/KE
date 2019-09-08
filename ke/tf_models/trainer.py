@@ -8,7 +8,7 @@ from ke.config import Config
 from ke.data_helper import DataHelper
 from ke.tf_models.evaluator import Evaluator
 from ke.tf_models.model_utils.conf import session_conf
-from ke.tf_models.models import ConvKB, TransE, TransformerKB, other_models
+from ke.tf_models.models import ConvKB, TransE, TransformerKB
 
 
 class Trainer(object):
@@ -36,11 +36,21 @@ class Trainer(object):
             raise ValueError(self.model_name)
         return model
 
-    def test(self, sess, model, global_step, loss):
-        # with torch.no_grad():  # 适用于测试阶段，不需要反向传播
+    def test(self, sess, model, global_step, loss, test_link_predict=False, test_triple_classification=False):
+
+        if loss < self.best_loss:
+            model.saver.save_model(sess, global_step=global_step, loss=loss)
+            if loss - self.best_loss < Config.patience:
+                self.patience_counter += 1
+            else:
+                self.patience_counter = 0
+            self.best_loss = loss
+        else:
+            self.patience_counter += 1
+
         if self.evaluator is None:
             self.evaluator = Evaluator(model_name=self.model_name, data_set=self.data_set, data_type="valid")
-        test_link_predict = False
+
         if test_link_predict:
             mr, mrr, hit_10, hit_3, hit_1 = self.evaluator.test_link_prediction()
             rank_metrics = "\n*model:{}, mrr:{:.4f}, mr:{:.4f}, hit_10:{:.4f}, hit_3:{:.4f}, hit_1:{:.4f}\n".format(
@@ -50,7 +60,7 @@ class Trainer(object):
             if mr > self.best_mr:
                 model.saver.save_model(sess, global_step=global_step, accuracy=mrr)
             self.best_mr = mr
-        test_triple_classification = False
+
         if test_triple_classification:
             acc, precision, recall, f1 = self.evaluator.test_triple_classification()
             logging.info("valid acc: {:.4f}, precision: {:.4f}, recall: {:.4f}, f1: {:.4f}".format(
@@ -65,15 +75,6 @@ class Trainer(object):
                 self.best_val_f1 = f1
             else:
                 self.patience_counter += 1
-        if loss < self.best_loss:
-            model.saver.save_model(sess, global_step=global_step, loss=loss)
-            if loss - self.best_loss < Config.patience:
-                self.patience_counter += 1
-            else:
-                self.patience_counter = 0
-            self.best_loss = loss
-        else:
-            self.patience_counter += 1
 
     def run(self):
         logging.info("start ... ")
@@ -91,7 +92,7 @@ class Trainer(object):
                     print("* Model load from file: {}".format(model_path))
             logging.info("{} start train ...".format(self.model_name))
             # mode = "concat" if self.model_name in other_models else "mix"
-            for epoch_num in trange(Config.epoch_nums, desc="train epoch num"):
+            for epoch_num in trange(Config.epoch_nums, desc="{} train epoch num".format(self.model_name)):
                 for x_batch, y_batch in self.data_helper.batch_iter(data_type="train",
                                                                     batch_size=Config.batch_size,
                                                                     neg_label=-1.0, _shuffle=True):
@@ -100,6 +101,7 @@ class Trainer(object):
                                                                model.input_y: y_batch})
                     if global_step % Config.save_step == 0:
                         logging.info(" step:{}, loss: {:.4f}".format(global_step, loss))
+                        self.test(sess, model, global_step, loss)
                     # predict = sess.run(model.predict, feed_dict={model.input_x: x_batch, model.input_y: y_batch})
                     # import ipdb
                     # ipdb.set_trace()
@@ -108,5 +110,6 @@ class Trainer(object):
                 # Early stopping and logging best f1
                 if (self.patience_counter >= Config.patience_num and epoch_num > Config.min_epoch_nums) \
                         or epoch_num == Config.max_epoch_nums:
-                    logging.info("{}, Best val f1: {:.4f}".format(self.model_name, self.best_val_f1))
+                    logging.info("{}, Best val f1: {:.4f} best loss:{:.4f}".format(self.model_name, self.best_val_f1,
+                                                                                   self.best_loss))
                     break

@@ -2,7 +2,7 @@ import logging
 import os
 
 from ke.utils.gpu_selector import get_available_gpu
-from ke.utils.hparams import Hparams
+from ke.utils.hparams import Hparams, set_process_name
 from ke.utils.logger import logging_config
 
 
@@ -13,7 +13,7 @@ def train(model_name, data_set):
 
 
 def test(model_name, data_set):
-    logging_config("{}-{}-test .log".format(model_name, data_set))
+    logging_config("{}-{}-test.log".format(model_name, data_set))
     from ke.tf_models.evaluator import Evaluator
     evaluator = Evaluator(model_name, data_set, data_type="test")
     mr, mrr, hit_10, hit_3, hit_1 = evaluator.test_link_prediction()
@@ -31,7 +31,7 @@ def test(model_name, data_set):
 def main():
     ''' Parse command line arguments and execute the code
         --stream_log, --relative_path, --log_level
-        --allow_gpus
+        --allow_gpus, --cpu_only
     '''
     parser = Hparams().parser
     group = parser.add_mutually_exclusive_group(required=True)  # 一组互斥参数,且至少需要互斥参数中的一个
@@ -49,9 +49,14 @@ def main():
                        help="测试")
     # parse args
     args = parser.parse_args()
-    available_gpu = get_available_gpu(num_gpu=1, allow_gpus=args.allow_gpus)  # default allow_gpus 0,1,2,3
-    os.environ["CUDA_VISIBLE_DEVICES"] = available_gpu
-    print("* using GPU: {} ".format(available_gpu))  # config前不可logging，否则config失效
+    if args.cpu_only:
+        os.environ["CUDA_VISIBLE_DEVICES"] = ""
+        print("CPU only ...")
+    else:
+        available_gpu = get_available_gpu(num_gpu=1, allow_gpus=args.allow_gpus)  # default allow_gpus 0,1,2,3
+        os.environ["CUDA_VISIBLE_DEVICES"] = available_gpu
+        print("* using GPU: {} ".format(available_gpu))  # config前不可logging，否则config失效
+    set_process_name(args.process_name)  # 设置进程名
     #
     if args.train:
         train(model_name=args.train, data_set=args.dataset)
@@ -63,5 +68,8 @@ if __name__ == '__main__':
     """ 代码执行入口
     examples:
         python manage.py  --train ConvKB --dataset lawdata  
+        nohup python3 manage.py --train TransformerKB --dataset WN18RR --process_name TW &
+        nohup python3 manage.py --test TransformerKB --dataset FB15K --process_name TF &
+        
     """
     main()
