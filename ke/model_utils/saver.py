@@ -9,7 +9,7 @@ from pathlib import Path
 import tensorflow as tf
 from tensorflow.python.framework import graph_util
 
-from ke.config import Config
+from config import Config
 
 
 class Saver(tf.train.Saver):

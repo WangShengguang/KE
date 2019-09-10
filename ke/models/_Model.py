@@ -1,7 +1,7 @@
 import tensorflow as tf
 
-from ke.config import Config
-from ke.tf_models.model_utils.saver import Saver
+from config import Config
+from ke.model_utils.saver import Saver
 
 __all__ = ["Model"]
 
@@ -79,7 +79,7 @@ class Model(metaclass=NetworkMeta):
         self.input_x = tf.placeholder(tf.int32, [batch_size, sequence_length], name="input_x")
         self.input_y = tf.placeholder(tf.float32, [batch_size, num_classes], name="input_y")  # [[1],[1],[-1]]
         self.h, self.t, self.r = tf.unstack(self.input_x, axis=1)
-        self.hrt_input_x = tf.stack([self.h, self.t, self.r], axis=1)  # 交换了位置
+        self.hrt_input_x = tf.stack([self.h, self.r, self.t], axis=1)  # 交换了位置
         # for tranX model
         positive_indices = tf.where(tf.greater(tf.reshape(self.input_y, [-1]), 0.999))
         negative_indices = tf.where(tf.less(tf.reshape(self.input_y, [-1]), 0.001))  # 0 or 1

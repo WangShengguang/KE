@@ -6,18 +6,17 @@ import tensorflow as tf
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 from tqdm import tqdm
 
-from ke.config import Config
+from config import Config
+from config import session_conf
 from ke.data_helper import DataHelper
-from ke.evaluate.rank_metrics import RankMetrics
-from ke.tf_models.model_utils.conf import session_conf
-from ke.tf_models.model_utils.saver import Saver
+from ke.model_utils.saver import Saver
 
 
 class Predictor(object):
     def __init__(self, model_name, data_set, sess=None):
         self.model_name = model_name
         self.data_set = data_set
-        self.rank_metrics = RankMetrics()
+        # self.rank_metrics = RankMetrics()
         self.data_helper = DataHelper(data_set=data_set)
         self.entity_nums = len(self.data_helper.entity2id)
         self.relation_nums = len(self.data_helper.relation2id)

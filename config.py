@@ -1,12 +1,26 @@
 import os
+import random
 
 import numpy as np
+import tensorflow as tf
 
 __all__ = ["Config"]
 
 cur_dir = os.path.dirname(os.path.abspath(__file__))
-root_dir = os.path.dirname(cur_dir)
+root_dir = cur_dir
 data_dir = os.path.join(root_dir, "benchmarks")
+
+# random seed
+rand_seed = 1234
+random.seed(rand_seed)
+np.random.seed(rand_seed)
+
+session_conf = tf.ConfigProto(allow_soft_placement=True,
+                              log_device_placement=False,
+                              gpu_options=tf.GPUOptions(per_process_gpu_memory_fraction=1,
+                                                        allow_growth=True  # 随着进程逐渐增加显存占用，而不是一下占满
+                                                        )
+                              )
 
 
 class DataConfig(object):
@@ -44,7 +58,8 @@ class TrainConfig(DataConfig):
 
 
 class Evaluate(TrainConfig):
-    load_model_mode = "min_loss"
+    load_model_mode = "max_step"
+    # load_model_mode = "min_loss"
     # load_model_mode = "max_acc"  # mrr
 
 

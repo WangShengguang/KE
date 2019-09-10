@@ -8,13 +8,15 @@ from ke.utils.logger import logging_config
 
 def train(model_name, data_set):
     logging_config("{}-{}-train.log".format(model_name, data_set))
-    from ke.tf_models.trainer import Trainer
+    from ke.trainer import Trainer
     Trainer(model_name=model_name, data_set=data_set).run()
+    #
+    test(model_name, data_set)
 
 
 def test(model_name, data_set):
     logging_config("{}-{}-test.log".format(model_name, data_set))
-    from ke.tf_models.evaluator import Evaluator
+    from ke.evaluator import Evaluator
     evaluator = Evaluator(model_name, data_set, data_type="test")
     mr, mrr, hit_10, hit_3, hit_1 = evaluator.test_link_prediction()
     rank_metrics = "\n*model:{}, mrr:{:.4f}, mr:{:.4f}, hit_10:{:.4f}, hit_3:{:.4f}, hit_1:{:.4f}\n".format(

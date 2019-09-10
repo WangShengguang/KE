@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from ke.config import Config
+from config import Config
 from ._Model import Model
 
 

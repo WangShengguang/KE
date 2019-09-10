@@ -4,7 +4,7 @@ import re
 
 import numpy as np
 
-from ke.config import data_dir, Config
+from config import data_dir, Config
 
 
 class DataHelper(object):
@@ -51,6 +51,7 @@ class DataHelper(object):
         if not self.inited_negative:
             self.pos_samples_set = set(positive_samples)
             self.entity_ids = list(self.entity2id.values())
+            self.neg_batch_count = 0
             self.inited_negative = True
 
     def get_batch_negative_samples(self, batch_positive_samples):
@@ -58,11 +59,12 @@ class DataHelper(object):
         :param data_type:  train,valid,test
         """
         batch_negative_samples = []
-        state = random.randint(0, 1)  # [0,1] ,每个批次只随机替换 head or tail
+        # state = self.neg_batch_count % 2  # [0,1] ,每个批次只随机替换 head or tail
+        # self.neg_batch_count += 1
         for (h, t, r) in batch_positive_samples:
             while (h, t, r) in self.pos_samples_set:
                 e = np.random.choice(self.entity_ids)
-                if state:
+                if random.randint(0, 1):
                     h = e
                 else:
                     t = e
