@@ -7,7 +7,6 @@ from tqdm import trange
 from config import Config
 from ke.data_helper import DataHelper
 from ke.evaluator import Evaluator
-from config import session_conf
 from ke.models import ConvKB, TransE, TransformerKB
 
 
@@ -18,7 +17,7 @@ class Trainer(object):
         self.data_helper = DataHelper(data_set)
         # evaluate
         self.evaluator = None
-        self.best_loss = 100000
+        self.min_loss = 100000
         self.best_mr = 0.0
         self.best_val_f1 = 0
         self.patience_counter = 0
@@ -38,13 +37,13 @@ class Trainer(object):
 
     def test(self, sess, model, global_step, loss, test_link_predict=False, test_triple_classification=False):
 
-        if loss <= self.best_loss:
-            model.saver.save_model(sess, global_step=global_step, loss=loss)
-            if loss - self.best_loss < Config.patience:
+        if loss <= self.min_loss:
+            model.saver.save_model(sess, global_step=global_step, loss=loss, mode="min_loss")
+            if loss - self.min_loss < Config.patience:
                 self.patience_counter += 1
             else:
                 self.patience_counter = 0
-            self.best_loss = loss
+            self.min_loss = loss
         else:
             self.patience_counter += 1
 
@@ -79,7 +78,7 @@ class Trainer(object):
     def run(self):
         logging.info("start ... ")
         graph = tf.Graph()
-        sess = tf.Session(config=session_conf, graph=graph)
+        sess = tf.Session(config=Config.session_conf, graph=graph)
         with graph.as_default(), sess.as_default():
             # get model
             model = self.get_model()
@@ -108,10 +107,11 @@ class Trainer(object):
                     # ipdb.set_trace()
                     losses.append(loss)
                 self.test(sess, model, global_step, loss)
+                model.saver.save_model(sess, global_step=global_step, loss=sum(losses) / len(losses), mode="max_step")
                 logging.info("epoch {}, loss:{} ...".format(epoch_num, sum(losses)))
                 # Early stopping and logging best f1
                 if (self.patience_counter >= Config.patience_num and epoch_num > Config.min_epoch_nums) \
                         or epoch_num == Config.max_epoch_nums:
                     logging.info("{}, Best val f1: {:.4f} best loss:{:.4f}".format(self.model_name, self.best_val_f1,
-                                                                                   self.best_loss))
+                                                                                   self.min_loss))
                     break

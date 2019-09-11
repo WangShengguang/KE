@@ -58,7 +58,7 @@ def main():
         available_gpu = get_available_gpu(num_gpu=1, allow_gpus=args.allow_gpus)  # default allow_gpus 0,1,2,3
         os.environ["CUDA_VISIBLE_DEVICES"] = available_gpu
         print("* using GPU: {} ".format(available_gpu))  # config前不可logging，否则config失效
-    set_process_name(args.process_name)  # 设置进程名
+    # set_process_name(args.process_name)  # 设置进程名
     #
     if args.train:
         train(model_name=args.train, data_set=args.dataset)

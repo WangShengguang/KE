@@ -1,4 +1,3 @@
-import glob
 import inspect
 import logging
 import os
@@ -18,20 +17,33 @@ class Saver(tf.train.Saver):
     所有模型使用同一种命名格式保存 model-0.01-0.9.ckpt.meta ...
     """
 
-    def __init__(self, model_name="", checkpoint_dir=None, relative_dir=None, **kwargs):
+    def __init__(self, model_name="", checkpoint_dir=Config.tf_ckpt_dir, relative_dir=None, **kwargs):
         """
         :param model_name:  模型名
         :param checkpoint_dir:  模型存储目录
         """
         super().__init__(**kwargs)
         self.model_name = model_name
-        checkpoint_dir = checkpoint_dir if checkpoint_dir else Config.tf_ckpt_dir
-        if relative_dir:
-            checkpoint_dir = os.path.join(checkpoint_dir, relative_dir)
-        self.checkpoint_dir = os.path.join(checkpoint_dir, self.model_name)
-        self.ckpt_prefix_template = os.path.join(self.checkpoint_dir, "model-{loss:.3f}-{accuracy:.3f}.ckpt")
-        self.meta_path_patten = re.compile("model-(?P<loss>\d+\.\d+)-(?P<acc>[01]\.\d+).ckpt-(?P<step>\d+).meta")
+        self.base_checkpoint_dir = os.path.join(checkpoint_dir, relative_dir) if relative_dir else checkpoint_dir
         self.config_saved = False
+        self.__init_model_path()
+
+    def __init_model_path(self):
+        self.checkpoint_dir = os.path.join(self.base_checkpoint_dir, self.model_name)
+        self.min_loss_ckpt_dir = os.path.join(self.checkpoint_dir, "min_loss")
+        self.max_acc_ckpt_dir = os.path.join(self.checkpoint_dir, "max_acc")
+        self.max_step_ckpt_dir = os.path.join(self.checkpoint_dir, "max_step")
+        for _dir in [self.max_acc_ckpt_dir, self.min_loss_ckpt_dir, self.max_step_ckpt_dir]:
+            os.makedirs(_dir, exist_ok=True)
+        self.ckpt_prefix_template = "model-{loss:.3f}-{accuracy:.3f}.ckpt"
+        self.meta_path_patten = re.compile(
+            "model-(?P<min_loss>\d+\.\d+)-(?P<max_acc>[01]\.\d+).ckpt-(?P<max_step>\d+).meta")
+        self.min_loss_ckpt_path_tmpl = os.path.join(self.min_loss_ckpt_dir, self.ckpt_prefix_template)
+        self.max_acc_ckpt_path_tmpl = os.path.join(self.max_acc_ckpt_dir, self.ckpt_prefix_template)
+        self.max_step_ckpt_path_tmpl = os.path.join(self.max_step_ckpt_dir, self.ckpt_prefix_template)
+        self.ckpt_tmpls = {"min_loss": self.min_loss_ckpt_path_tmpl,
+                           "max_acc": self.max_acc_ckpt_path_tmpl,
+                           "max_step": self.max_step_ckpt_path_tmpl}
 
     def __save_config(self):
         # save config.py 将配置参数保存下来
@@ -41,18 +53,18 @@ class Saver(tf.train.Saver):
             shutil.copyfile(src_config_path, dst_config_path)
             self.config_saved = True
 
-    def save_model(self, sess, global_step, loss=100.0, accuracy=0.0, **kwargs):
+    def save_model(self, sess, global_step, mode="max_step", loss=11111.0, accuracy=0.0):
         """
         :param sess: TensorFlow Session Object
+        :param mode: min_loss, max_acc, max_step
         :type global_step: tf.Variable or int
         :type loss: tf.Variable or float
         :type accuracy: float
         :return: model_checkpoint_path
         """
-        os.makedirs(self.checkpoint_dir, exist_ok=True)
-        ckpt_prefix = self.ckpt_prefix_template.format(loss=loss, accuracy=accuracy)
-        model_checkpoint_path = self.save(sess, ckpt_prefix, global_step=global_step, **kwargs)
         self.__save_config()
+        ckpt_prefix = self.ckpt_tmpls[mode].format(loss=loss, accuracy=accuracy)
+        model_checkpoint_path = self.save(sess, ckpt_prefix, global_step=global_step, )
         logging.info("* Model save to file: {}".format(model_checkpoint_path))
         return model_checkpoint_path
 
@@ -75,6 +87,28 @@ class Saver(tf.train.Saver):
             logging.info("* Model restore from file: {}".format(model_path))
         return model_path
 
+    def get_model_path(self, mode="max_step"):
+        """
+        :param mode: min_loss, max_acc, max_step
+        :return: model_path  model_name.meta
+                    确保model_name.index,model_name.data-00000-of-00001都存在
+        """
+        assert mode in ["min_loss", "max_acc", "max_step"], "mode is not exist： {}".format(mode)
+        model_paths = Path(self.checkpoint_dir).joinpath(mode).rglob("*.meta")
+        model_paths = [path for path in model_paths if self.check_valid(path)]
+        print("model_paths: {}".format(model_paths))
+        if model_paths:
+            is_reverse = True if mode == "min_loss" else False  # 从差到好(loss ↓, acc ↑, step ↑)
+            sorted_model_paths = sorted(
+                model_paths,  # loss,acc,global_step
+                key=lambda path: float(self.meta_path_patten.search(str(path)).group(mode)),
+                reverse=is_reverse)
+            model_path = str(sorted_model_paths[-1]).strip(".meta")
+        else:
+            model_path = ""  # 默认返回空路径
+        logging.info("\n** get model path:{}\n".format(model_path))
+        return model_path
+
     def check_valid(self, model_path):
         """ 确保restore 所需的三个文件都存在
         :param model_path:
@@ -87,27 +121,6 @@ class Saver(tf.train.Saver):
             if not path.with_suffix(suffix).is_file():
                 return False
         return True
-
-    def get_model_path(self, mode="min_loss"):
-        """
-        :param mode: min_loss, max_acc, max_step
-        :return: model_path  model_name.meta
-                    确保model_name.index,model_name.data-00000-of-00001都存在
-        """
-        assert mode in ["min_loss", "max_acc", "max_step"], "mode is not exist： {}".format(mode)
-        model_paths = glob.glob(os.path.join(self.checkpoint_dir, "*.meta"))
-        model_paths = [path for path in model_paths if self.check_valid(path)]
-        if model_paths:
-            is_reverse = True if mode == "min_loss" else False  # 从差到好(loss ↓, acc ↑, step ↑)
-            sorted_model_paths = sorted(
-                model_paths,  # loss,acc,global_step
-                key=lambda path: float(self.meta_path_patten.search(path).group(mode.split("_")[1])),
-                reverse=is_reverse)
-            model_path = sorted_model_paths[-1].strip(".meta")
-        else:
-            model_path = ""  # 默认返回空路径
-        logging.info("\n** get model path:{}\n".format(model_path))
-        return model_path
 
     def export_graph_pb_from_ckpt(self, model_path=""):
         """ https://blog.csdn.net/guyuealian/article/details/82218092#ckpt-转换成-pb格式

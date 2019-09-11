@@ -7,7 +7,6 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
 from tqdm import tqdm
 
 from config import Config
-from config import session_conf
 from ke.data_helper import DataHelper
 from ke.model_utils.saver import Saver
 
@@ -24,7 +23,7 @@ class Predictor(object):
 
     def load_model(self):
         graph = tf.Graph()
-        self.sess = tf.Session(config=session_conf, graph=graph)
+        self.sess = tf.Session(config=Config.session_conf, graph=graph)
         with graph.as_default(), self.sess.as_default():  # self 无法load TransformerKB
             saver = Saver(self.model_name, relative_dir=self.data_set, allow_empty=True)
             saver.restore_model(self.sess)
