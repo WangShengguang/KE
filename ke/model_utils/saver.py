@@ -6,7 +6,6 @@ import shutil
 from pathlib import Path
 
 import tensorflow as tf
-from tensorflow.python.framework import graph_util
 
 from config import Config
 
@@ -121,54 +120,3 @@ class Saver(tf.train.Saver):
             if not path.with_suffix(suffix).is_file():
                 return False
         return True
-
-    def export_graph_pb_from_ckpt(self, model_path=""):
-        """ https://blog.csdn.net/guyuealian/article/details/82218092#ckpt-转换成-pb格式
-        :type sess: tf.Session
-        """
-        self.graph_pb_path = os.path.join(self.checkpoint_dir, "pb", self.model_name + ".pb")
-        self.graph_output_node_names = ["input_x", "input_y", "prediction"]
-        Path(self.graph_pb_path).parent.mkdir(parents=True, exist_ok=True)
-        if not model_path:
-            model_path = self.get_model_path(mode=Config.load_model_mode)
-        with tf.Session() as sess:
-            saver = tf.train.import_meta_graph(model_path + ".meta")
-            saver.restore(sess, model_path)
-            output_graph_def = graph_util.convert_variables_to_constants(
-                sess,
-                sess.graph_def,
-                self.graph_output_node_names)
-            with tf.gfile.GFile(self.graph_pb_path, "wb") as f:
-                f.write(output_graph_def.SerializeToString())
-
-    def load_graph_pb(self):
-        if not os.path.isfile(self.graph_pb_path):
-            self.export_graph_pb_from_ckpt()
-        with tf.gfile.GFile(self.graph_pb_path, "rb") as f:
-            graph_def = tf.GraphDef()
-            graph_def.ParseFromString(f.read())
-        with tf.Graph().as_default() as graph:
-            tf.import_graph_def(graph_def, name=self.model_name)
-        return graph
-
-
-def plot_keras_history(history):
-    """
-    :param history:  history = model.fit(x,y)
-    :return:  None
-    """
-    import matplotlib.pyplot as plt
-    plt.subplot(211)
-    plt.title("accuracy")
-    plt.plot(history.history["acc"], color="r", label="train")
-    plt.plot(history.history["val_acc"], color="b", label="val")
-    plt.legend(loc="best")
-
-    plt.subplot(212)
-    plt.title("loss")
-    plt.plot(history.history["loss"], color="r", label="train")
-    plt.plot(history.history["val_loss"], color="b", label="val")
-    plt.legend(loc="best")
-
-    plt.tight_layout()
-    plt.show()

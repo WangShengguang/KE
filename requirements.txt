@@ -4,3 +4,4 @@ keras-transformer
 tensor2tensor
 sklearn
 torch
+tqdm

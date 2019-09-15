@@ -91,7 +91,7 @@ class Trainer(object):
                     print("* Model load from file: {}".format(model_path))
             logging.info("{} {} start train ...".format(self.model_name, self.data_set))
             # mode = "concat" if self.model_name in other_models else "mix"
-            for epoch_num in trange(Config.max_epoch_nums,
+            for epoch_num in trange(1, Config.max_epoch_nums + 1,
                                     desc="{} {} train epoch ".format(self.model_name, self.data_set)):
                 losses = []
                 for x_batch, y_batch in self.data_helper.batch_iter(data_type="train",

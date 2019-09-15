@@ -1,42 +1,30 @@
 # KE
-Knowledge  Embedding   
-
-知识编模型
-
-
-
+Knowledge Embedding   ，知识编码
 
 主要参考OpenKE，将其中C++部分用Python重新实现，过度抽象封装的部分进行重新封装 
 
-
-### 关系识别
+---
+### 实体预测
 |数据集|num entity|模型|mrr|mr|hit@10|hit@3|hit@1|
 |---|---|---|---|---|---|---|---|
-|lawdata|98|TransE|0.2544|9.1359|0.7039|0.3883|0.0097|
-|lawdata|98|ConvKB|0.5865|3.4466|0.9320|0.7184|0.4029|
-|lawdata|98|TransformerKB|0.6082|3.3835|0.9272|0.7282|0.4320|
-|WN18RR|40943|TransformerKB|0.0469|15635.0100|0.1000|0.0550|0.0250|
-|WN18RR|40943|ConvKB|0.0568|12138.0100|0.0950|0.0600|0.0350|
-|FB15K|14951|TransformerKB|0.0209|2380.8920|0.0405|0.0170|0.0075|
+|lawdata|98|TransE|0.3358|4.2650|0.9350|0.5950|0.0100|
+|lawdata|98|ConvKB|0.5891|3.3400|0.9350|0.7250|0.3950|
+|lawdata|98|TransformerKB|0.5918|3.2950|0.9400|0.7200|0.4050|
+|WN18RR|40943|TransE|0.0719|8944.3050|0.1850|0.1300|0.0000|
+|WN18RR|40943|ConvKB|0.1093|11796.6300|0.1800|0.1450|0.0650|
+|WN18RR|40943|TransformerKB|0.0940|8300.8650|0.1600|0.1100|0.0650|
+|FB15K|14951|TransE|0.1107|262.4550|0.3000|0.1250|0.0200|
+|FB15K|14951|ConvKB|0.1439|205.0950|0.3100|0.1400|0.0750|
+|FB15K|14951|TransformerKB|0.1046|221.3900|0.1900|0.0900|0.0500|
 
-*model:WN18RR TransE, mrr:0.0035, mr:15305.3800, hit_10:0.0150, hit_3:0.0000, hit_1:0.0000
-*model:FB15K TransE, mrr:0.0177, mr:5497.3300, hit_10:0.0300, hit_3:0.0100, hit_1:0.0100  
+- OpenKE: averaged(raw): 0.156255 271.682068 0.300757 0.167426    0.084094
 
-*model:ConvKB FB15K, mrr:0.1374, mr:207.7150, hit_10:0.2800, hit_3:0.1200, hit_1:0.0700
-
-
-averaged(raw): 0.156255 271.682068 0.300757 0.167426    0.084094
-*model:ConvKB, mrr:0.1336, mr:233.0500, hit_10:0.2350, hit_3:0.1350, hit_1:0.0700
-
-* local train TransE
->lowdata model:TransE, mrr:0.5514, mr:3.5243, hit_10:0.9320, hit_3:0.7184, hit_1:0.3301
-
-
-- [Awesome Knowledge Graph Embedding Approaches](https://gist.github.com/mommi84/07f7c044fa18aaaa7b5133230207d8d4)
- 
 
 # tips
     data feed 
     多轮训练（断点续训）
     load max_step 而不是min_loss
-    
+
+## Reference
+- [Awesome Knowledge Graph Embedding Approaches](https://gist.github.com/mommi84/07f7c044fa18aaaa7b5133230207d8d4)
+

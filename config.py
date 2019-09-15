@@ -49,7 +49,7 @@ class TrainConfig(DataConfig):
     # model save & load
     load_pretrain = True  # 断点续训
     max_to_keep = 2
-    save_step = 500
+    save_step = 1000
     #
     random_seed = 1234
     np.random.seed(random_seed)
