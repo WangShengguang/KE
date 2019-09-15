@@ -22,8 +22,11 @@ Knowledge  Embedding
 *model:WN18RR TransE, mrr:0.0035, mr:15305.3800, hit_10:0.0150, hit_3:0.0000, hit_1:0.0000
 *model:FB15K TransE, mrr:0.0177, mr:5497.3300, hit_10:0.0300, hit_3:0.0100, hit_1:0.0100  
 
+*model:ConvKB FB15K, mrr:0.1374, mr:207.7150, hit_10:0.2800, hit_3:0.1200, hit_1:0.0700
+
 
 averaged(raw): 0.156255 271.682068 0.300757 0.167426    0.084094
+*model:ConvKB, mrr:0.1336, mr:233.0500, hit_10:0.2350, hit_3:0.1350, hit_1:0.0700
 
 * local train TransE
 >lowdata model:TransE, mrr:0.5514, mr:3.5243, hit_10:0.9320, hit_3:0.7184, hit_1:0.3301
@@ -35,3 +38,5 @@ averaged(raw): 0.156255 271.682068 0.300757 0.167426    0.084094
 # tips
     data feed 
     多轮训练（断点续训）
+    load max_step 而不是min_loss
+    

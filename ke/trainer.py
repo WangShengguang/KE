@@ -6,17 +6,17 @@ from tqdm import trange
 
 from config import Config
 from ke.data_helper import DataHelper
-from ke.evaluator import Evaluator
 from ke.models import ConvKB, TransE, TransformerKB
 
 
 class Trainer(object):
-    def __init__(self, model_name, data_set):
+    def __init__(self, model_name, data_set, min_num_epoch=Config.min_epoch_nums):
         self.model_name = model_name
         self.data_set = data_set
+        self.min_num_epoch = min_num_epoch
         self.data_helper = DataHelper(data_set)
         # evaluate
-        self.evaluator = None
+        # self.evaluator = None
         self.min_loss = 100000
         self.best_mr = 0.0
         self.best_val_f1 = 0
@@ -47,8 +47,8 @@ class Trainer(object):
         else:
             self.patience_counter += 1
 
-        if self.evaluator is None:
-            self.evaluator = Evaluator(model_name=self.model_name, data_set=self.data_set, data_type="valid")
+        # if self.evaluator is None:
+        #     self.evaluator = Evaluator(model_name=self.model_name, data_set=self.data_set, data_type="valid")
 
         # if test_link_predict:
         #     mr, mrr, hit_10, hit_3, hit_1 = self.evaluator.test_link_prediction()
@@ -84,14 +84,15 @@ class Trainer(object):
             model = self.get_model()
             sess.run(tf.global_variables_initializer())
             if not Path(model.saver.get_model_path(mode=Config.load_model_mode) + ".meta").is_file():
-                model.saver.save_model(sess, global_step=0, loss=100.0)  # 0 step state save as init test file
+                model.saver.save_model(sess, global_step=0, loss=100.0, mode="max_step")  # 0 step state save test file
             elif Config.load_pretrain:  # 断点续训
                 model_path = model.saver.restore_model(sess, fail_ok=True)
                 if model_path:
                     print("* Model load from file: {}".format(model_path))
-            logging.info("{} start train ...".format(self.model_name))
+            logging.info("{} {} start train ...".format(self.model_name, self.data_set))
             # mode = "concat" if self.model_name in other_models else "mix"
-            for epoch_num in trange(Config.epoch_nums, desc="{} train epoch num".format(self.model_name)):
+            for epoch_num in trange(Config.max_epoch_nums,
+                                    desc="{} {} train epoch ".format(self.model_name, self.data_set)):
                 losses = []
                 for x_batch, y_batch in self.data_helper.batch_iter(data_type="train",
                                                                     batch_size=Config.batch_size,
@@ -110,8 +111,7 @@ class Trainer(object):
                 model.saver.save_model(sess, global_step=global_step, loss=sum(losses) / len(losses), mode="max_step")
                 logging.info("epoch {}, loss:{} ...".format(epoch_num, sum(losses)))
                 # Early stopping and logging best f1
-                if (self.patience_counter >= Config.patience_num and epoch_num > Config.min_epoch_nums) \
-                        or epoch_num == Config.max_epoch_nums:
+                if self.patience_counter >= Config.patience_num and epoch_num > self.min_num_epoch:
                     logging.info("{}, Best val f1: {:.4f} best loss:{:.4f}".format(self.model_name, self.best_val_f1,
                                                                                    self.min_loss))
                     break

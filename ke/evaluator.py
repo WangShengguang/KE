@@ -177,7 +177,7 @@ class Evaluator(Predictor):
         hits_left = {1: [], 3: [], 10: []}
         hits_right = {1: [], 3: [], 10: []}
         total = len(self.data_helper.data[self.data_type])
-        logging.info("*model:{}, test start, {}: {} ".format(self.model_name, self.data_type, total))
+        logging.info("*model:{} {}, test start, {}: {} ".format(self.model_name, self.data_set, self.data_type, total))
         for step, (h, t, r) in enumerate(tqdm(self.data_helper.data[self.data_type],
                                               desc="{} Evaluator test".format(self.model_name))):
             pred_head_ids = self.predict_head_entity(t, r)
@@ -207,7 +207,7 @@ class Evaluator(Predictor):
             elif rank_right <= 10:
                 hits[10].append(1)
                 hits_right[1].append(1)
-            logging.info("*model:{}, test step: {}/{}".format(self.model_name, step, total))
+            logging.info("*model:{} {}, test step: {}/{}".format(self.model_name, self.data_set, step, total))
         for k in [1, 3, 10]:
             hits[k] = np.mean(hits[k])
         # MR
@@ -234,16 +234,19 @@ class Evaluator(Predictor):
         """
         metrics_li = []
         total = len(self.data_helper.data[self.data_type])
-        logging.info("* model:{}, test_link_prediction start, {}: {} ".format(self.model_name, self.data_type, total))
+        logging.info("* model:{},{} test_link_prediction start, {}: {} ".format(self.model_name,
+                                                                                self.data_set, self.data_type, total))
         for step, (h, t, r) in enumerate(tqdm(self.data_helper.data[self.data_type],
-                                              desc="{} test_link_prediction".format(self.model_name))):
+                                              desc="{} {} test_link_prediction".format(self.model_name,
+                                                                                       self.data_set))):
             pred_head_ids = self.predict_head_entity(t, r)
             _metrics = get_rank_hit_metrics(y_id=h, pred_ids=pred_head_ids)
             metrics_li.append(_metrics)
             pred_tail_ids = self.predict_tail_entity(h, r)
             _metrics = get_rank_hit_metrics(y_id=t, pred_ids=pred_tail_ids)
             metrics_li.append(_metrics)
-            logging.info("*model:{}, test_link_prediction step: {}/{}".format(self.model_name, step, total))
+            logging.info("*model:{} {}, test_link_prediction step: {}/{}".format(self.model_name,
+                                                                                 self.data_set, step, total))
         metrics = {}
         for metric_name in metrics_li[0].keys():
             metrics[metric_name] = sum([_metrics[metric_name] for _metrics in metrics_li]) / len(metrics_li)
@@ -265,11 +268,12 @@ class Evaluator(Predictor):
                                       batch_r=_negative_samples[:, 2])
         rel_threshold = self.get_best_threshold(positive_score, negative_score)
         total = len(positive_samples) + len(negative_samples)
-        logging.info(
-            "* model:{}, test_triple_classification start, {}: {} ".format(self.model_name, self.data_type, total))
+        logging.info("* model:{} {}, test_triple_classification start, {}: {} ".format(
+            self.model_name, self.data_set, self.data_type, total))
         for x_batch, y_batch in tqdm(
                 self.data_helper.batch_iter(data_type=self.data_type, batch_size=Config.batch_size),
-                total=total / Config.batch_size, desc="{} test_triple_classification".format(self.model_name)):
+                total=total / Config.batch_size,
+                desc="{} {} test_triple_classification".format(self.model_name, self.data_set)):
             prediction = self.predict(batch_h=x_batch[:, 0], batch_t=x_batch[:, 1], batch_r=x_batch[:, 2])
             for i, _pred in enumerate(prediction.reshape([-1]).astype(int).tolist()):
                 _threshold = rel_threshold[x_batch[i][2]]  # 越小越相似，为正样例

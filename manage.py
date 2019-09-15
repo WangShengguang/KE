@@ -2,7 +2,7 @@ import logging
 import os
 
 from ke.utils.gpu_selector import get_available_gpu
-from ke.utils.hparams import Hparams, set_process_name
+from ke.utils.hparams import Hparams
 from ke.utils.logger import logging_config
 
 
@@ -19,8 +19,8 @@ def test(model_name, data_set):
     from ke.evaluator import Evaluator
     evaluator = Evaluator(model_name, data_set, data_type="test")
     mr, mrr, hit_10, hit_3, hit_1 = evaluator.test_link_prediction()
-    rank_metrics = "\n*model:{}, mrr:{:.4f}, mr:{:.4f}, hit_10:{:.4f}, hit_3:{:.4f}, hit_1:{:.4f}\n".format(
-        model_name, mrr, mr, hit_10, hit_3, hit_1)
+    rank_metrics = "\n*model:{} {}, mrr:{:.4f}, mr:{:.4f}, hit_10:{:.4f}, hit_3:{:.4f}, hit_1:{:.4f}\n".format(
+        model_name, data_set, mrr, mr, hit_10, hit_3, hit_1)
     print(rank_metrics)
     logging.info(rank_metrics)
     # accuracy, precision, recall, f1 = evaluator.test_triple_classification()
@@ -28,6 +28,16 @@ def test(model_name, data_set):
     #     model_name, accuracy, precision, recall, f1)
     # print(_metrics)
     # logging.info(_metrics)
+
+
+def run_all(mode):
+    logging_config(f"run_all_{mode}.log")
+    from ke.trainer import Trainer
+    for data_set, num_epoch in [("WN18RR", 5), ("lawdata", 100), ("FB15K", 0)]:
+        for model_name in ["ConvKB", "TransE", "TransformerKB"]:
+            if mode in ["train", "all"]:
+                Trainer(model_name=model_name, data_set=data_set, min_num_epoch=num_epoch).run()
+            test(model_name, data_set)
 
 
 def main():
@@ -40,16 +50,14 @@ def main():
     # 函数名参数
     parser.add_argument('--dataset', type=str,
                         choices=["lawdata", "FB15K", "WN18RR"],
-                        required=True,
+                        # required=True,
                         help="数据集")
     models = ["ConvKB", "TransE", "TransformerKB"]
-    group.add_argument('--train', type=str,
-                       choices=models,
-                       help="训练")
-    group.add_argument('--test', type=str,
-                       choices=models,
-                       help="测试")
+    group.add_argument('--train', type=str, choices=models, help="训练")
+    group.add_argument('--test', type=str, choices=models, help="测试")
+    group.add_argument('--run_all', type=str, choices=["train", "test", "all"], help="所有模型和数据集")  # log print到屏幕
     # parse args
+
     args = parser.parse_args()
     if args.cpu_only:
         os.environ["CUDA_VISIBLE_DEVICES"] = ""
@@ -59,11 +67,12 @@ def main():
         os.environ["CUDA_VISIBLE_DEVICES"] = available_gpu
         print("* using GPU: {} ".format(available_gpu))  # config前不可logging，否则config失效
     # set_process_name(args.process_name)  # 设置进程名
-    #
     if args.train:
         train(model_name=args.train, data_set=args.dataset)
     elif args.test:
         test(model_name=args.test, data_set=args.dataset)
+    elif args.run_all:
+        run_all(args.run_all)
 
 
 if __name__ == '__main__':
