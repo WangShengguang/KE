@@ -2,9 +2,6 @@ import os
 import random
 
 import numpy as np
-
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # or any {'0', '1', '2'}
-
 import tensorflow as tf
 
 __all__ = ["Config"]
@@ -35,10 +32,12 @@ class TrainConfig(DataConfig):
     epoch_nums = 1000
     # margin loss
     learning_rate = 0.0001
+    l2_reg_lambda = 0.001
     margin = 1.0
     #
     ent_emb_dim = 128
     rel_emb_dim = 128
+    hidden_dim = 128
     # early stop
     max_epoch_nums = 100
     min_epoch_nums = 5
@@ -67,13 +66,13 @@ class TfConfig(object):
         TF_CPP_MIN_LOG_LEVEL 取值 1 ： 屏蔽通知信息
         TF_CPP_MIN_LOG_LEVEL 取值 2 ： 屏蔽通知信息和警告信息
         TF_CPP_MIN_LOG_LEVEL 取值 3 ： 屏蔽通知信息、警告信息和报错信息
+        os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # or any {'0', '1', '2'}
     """
     session_conf = tf.ConfigProto(allow_soft_placement=True,
                                   log_device_placement=False,
                                   gpu_options=tf.GPUOptions(per_process_gpu_memory_fraction=1,
                                                             # 随着进程逐渐增加显存占用，而不是一下占满
-                                                            allow_growth=True)
-                                  )
+                                                            allow_growth=True))
 
 
 class Config(Evaluate, TfConfig):

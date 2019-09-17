@@ -1,12 +1,15 @@
 import logging
 from pathlib import Path
 
+import numpy as np
 import tensorflow as tf
 from tqdm import trange
 
 from config import Config
 from ke.data_helper import DataHelper
-from ke.models import ConvKB, TransE, TransformerKB
+from ke.models import (Analogy, ComplEx, DistMult, HolE, RESCAL,
+                       TransD, TransE, TransH, TransR,
+                       ConvKB, TransformerKB)
 
 
 class Trainer(object):
@@ -29,10 +32,11 @@ class Trainer(object):
             model = ConvKB(self.data_set, num_ent_tags, num_rel_tags, Config.ent_emb_dim, Config.rel_emb_dim)
         elif self.model_name == "TransformerKB":
             model = TransformerKB(self.data_set, num_ent_tags, num_rel_tags, embedding_dim=Config.ent_emb_dim)
-        elif self.model_name == "TransE":
-            model = TransE(self.data_set, num_ent_tags, num_rel_tags)
         else:
-            raise ValueError(self.model_name)
+            Model = {"Analogy": Analogy, "ComplEx": ComplEx, "DistMult": DistMult, "HolE": HolE, "RESCAL": RESCAL,
+                     "TransD": TransD, "TransE": TransE, "TransH": TransH, "TransR": TransR}[self.model_name]
+            model = Model(self.data_set, num_ent_tags, num_rel_tags)
+        model._build()
         return model
 
     def test(self, sess, model, global_step, loss, test_link_predict=False, test_triple_classification=False):
@@ -76,7 +80,7 @@ class Trainer(object):
         #         self.patience_counter += 1
 
     def run(self):
-        logging.info("start ... ")
+        logging.info("{} {} start train ...".format(self.model_name, self.data_set))
         graph = tf.Graph()
         sess = tf.Session(config=Config.session_conf, graph=graph)
         with graph.as_default(), sess.as_default():
@@ -89,8 +93,6 @@ class Trainer(object):
                 model_path = model.saver.restore_model(sess, fail_ok=True)
                 if model_path:
                     print("* Model load from file: {}".format(model_path))
-            logging.info("{} {} start train ...".format(self.model_name, self.data_set))
-            # mode = "concat" if self.model_name in other_models else "mix"
             for epoch_num in trange(1, Config.max_epoch_nums + 1,
                                     desc="{} {} train epoch ".format(self.model_name, self.data_set)):
                 losses = []
@@ -104,14 +106,12 @@ class Trainer(object):
                         logging.info(" step:{}, loss: {:.4f}".format(global_step, loss))
                         self.test(sess, model, global_step, loss)
                     # predict = sess.run(model.predict, feed_dict={model.input_x: x_batch, model.input_y: y_batch})
-                    # import ipdb
-                    # ipdb.set_trace()
                     losses.append(loss)
                 self.test(sess, model, global_step, loss)
-                model.saver.save_model(sess, global_step=global_step, loss=sum(losses) / len(losses), mode="max_step")
-                logging.info("epoch {}, loss:{} ...".format(epoch_num, sum(losses)))
+                model.saver.save_model(sess, global_step=global_step, loss=np.mean(losses), mode="max_step")
+                logging.info("epoch {}, loss:{:.4f} ...\n".format(epoch_num, np.mean(losses)))
                 # Early stopping and logging best f1
                 if self.patience_counter >= Config.patience_num and epoch_num > self.min_num_epoch:
-                    logging.info("{}, Best val f1: {:.4f} best loss:{:.4f}".format(self.model_name, self.best_val_f1,
-                                                                                   self.min_loss))
+                    logging.info("{} {}, Best val f1: {:.4f} best loss:{:.4f}".format(
+                        self.model_name, self.data_set, self.best_val_f1, self.min_loss))
                     break

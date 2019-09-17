@@ -11,7 +11,6 @@ class ConvKB(Model):
         self.filter_sizes = [1]
         self.num_filters = 500
         self.vocab_size = num_ent_tags + num_rel_tags
-        self.l2_reg_lambda = 0.001
         self.dropout_keep_prob = 1.0
         self.useConstantInit = False
 
@@ -72,4 +71,4 @@ class ConvKB(Model):
         self.predict = tf.nn.sigmoid(self.scores, name="predict")
         # Calculate loss
         losses = tf.nn.softplus(self.scores * self.input_y)
-        self.loss = tf.reduce_mean(losses) + self.l2_reg_lambda * l2_loss
+        self.loss = tf.reduce_mean(losses) + self.config.l2_reg_lambda * l2_loss

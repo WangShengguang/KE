@@ -95,7 +95,7 @@ class Saver(tf.train.Saver):
         assert mode in ["min_loss", "max_acc", "max_step"], "mode is not exist： {}".format(mode)
         model_paths = Path(self.checkpoint_dir).joinpath(mode).rglob("*.meta")
         model_paths = [path for path in model_paths if self.check_valid(path)]
-        print("model_paths: {}".format(model_paths))
+        print("find {} models from {}".format(len(model_paths), self.checkpoint_dir))
         if model_paths:
             is_reverse = True if mode == "min_loss" else False  # 从差到好(loss ↓, acc ↑, step ↑)
             sorted_model_paths = sorted(
@@ -105,7 +105,6 @@ class Saver(tf.train.Saver):
             model_path = str(sorted_model_paths[-1]).strip(".meta")
         else:
             model_path = ""  # 默认返回空路径
-        logging.info("\n** get model path:{}\n".format(model_path))
         return model_path
 
     def check_valid(self, model_path):

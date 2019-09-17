@@ -5,8 +5,13 @@ from ke.utils.gpu_selector import get_available_gpu
 from ke.utils.hparams import Hparams
 from ke.utils.logger import logging_config
 
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # or any {'0', '1', '2'}
+
 
 def train(model_name, data_set):
+    if model_name == "all" or data_set == "all":
+        run_all(model_name, data_set, mode="train")
+        return
     logging_config("{}-{}-train.log".format(model_name, data_set))
     from ke.trainer import Trainer
     Trainer(model_name=model_name, data_set=data_set).run()
@@ -14,8 +19,12 @@ def train(model_name, data_set):
     test(model_name, data_set)
 
 
-def test(model_name, data_set):
-    logging_config("{}-{}-test.log".format(model_name, data_set))
+def test(model_name, data_set, log_on=False):
+    if model_name == "all" or data_set == "all":
+        run_all(model_name, data_set, mode="test")
+        return
+    if log_on:
+        logging_config("{}-{}-test.log".format(model_name, data_set))
     from ke.evaluator import Evaluator
     evaluator = Evaluator(model_name, data_set, data_type="test")
     mr, mrr, hit_10, hit_3, hit_1 = evaluator.test_link_prediction()
@@ -30,14 +39,31 @@ def test(model_name, data_set):
     # logging.info(_metrics)
 
 
-def run_all(mode):
-    logging_config(f"run_all_{mode}.log")
+def run_all(model_name, data_set, mode):
+    logging_config(f"{model_name}_{data_set}_{mode}.log")
+    if model_name == "all":
+        all_models = models[:-1]
+    else:
+        all_models = [model_name]
+    if data_set == "all":
+        all_data_sets = data_sets[:-1]
+    else:
+        all_data_sets = [data_set]
     from ke.trainer import Trainer
-    for data_set, num_epoch in [("WN18RR", 5), ("lawdata", 100), ("FB15K", 0)]:
-        for model_name in ["ConvKB", "TransE", "TransformerKB"]:
-            if mode in ["train", "all"]:
-                Trainer(model_name=model_name, data_set=data_set, min_num_epoch=num_epoch).run()
-            test(model_name, data_set)
+    dataset_epoch_nums = {"WN18RR": 5, "lawdata": 100, "lawdata_new": 100, "FB15K": 3}
+    for data_set in all_data_sets:
+        num_epoch = dataset_epoch_nums[data_set]
+        for model_name in all_models:
+            Trainer(model_name=model_name, data_set=data_set, min_num_epoch=num_epoch).run()
+            if mode == "train":
+                test(model_name, data_set)
+
+
+models = ["Analogy", "ComplEx", "DistMult", "HolE", "RESCAL",
+          "TransD", "TransE", "TransH", "TransR",
+          "ConvKB", "TransformerKB", "all"]
+
+data_sets = ["lawdata", "lawdata_new", "FB15K", "WN18RR", "all"]
 
 
 def main():
@@ -48,14 +74,9 @@ def main():
     parser = Hparams().parser
     group = parser.add_mutually_exclusive_group(required=True)  # 一组互斥参数,且至少需要互斥参数中的一个
     # 函数名参数
-    parser.add_argument('--dataset', type=str,
-                        choices=["lawdata", "FB15K", "WN18RR"],
-                        # required=True,
-                        help="数据集")
-    models = ["ConvKB", "TransE", "TransformerKB"]
+    parser.add_argument('--dataset', type=str, choices=data_sets, required=True, help="数据集")
     group.add_argument('--train', type=str, choices=models, help="训练")
     group.add_argument('--test', type=str, choices=models, help="测试")
-    group.add_argument('--run_all', type=str, choices=["train", "test", "all"], help="所有模型和数据集")  # log print到屏幕
     # parse args
 
     args = parser.parse_args()
@@ -70,9 +91,7 @@ def main():
     if args.train:
         train(model_name=args.train, data_set=args.dataset)
     elif args.test:
-        test(model_name=args.test, data_set=args.dataset)
-    elif args.run_all:
-        run_all(args.run_all)
+        test(model_name=args.test, data_set=args.dataset, log_on=True)
 
 
 if __name__ == '__main__':
@@ -80,7 +99,7 @@ if __name__ == '__main__':
     examples:
         python manage.py  --train ConvKB --dataset lawdata  
         nohup python3 manage.py --train TransformerKB --dataset WN18RR --process_name TW &
-        nohup python3 manage.py --test TransformerKB --dataset FB15K --process_name TF &
-        
+        nohup python3 manage.py --test TransformerKB --dataset FB15K --process_name TF &\
+        python manage.py  --train all --dataset lawdata_new  
     """
     main()
