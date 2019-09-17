@@ -13,13 +13,10 @@ class DistMult(TransX):
         return tf.reduce_sum(h * r * t, -1, keep_dims=False, name=name)
 
     def forward(self):
-        pos_y = tf.ones(self.pos_h.get_shape()[0])
-        neg_y = -1 * tf.ones(self.neg_h.get_shape()[0])
-
         _p_score = self._calc(self.pos_h_embed, self.pos_t_embed, self.pos_r_embed)
         _n_score = self._calc(self.neg_h_embed, self.neg_t_embed, self.neg_r_embed)
         # print(_n_score.get_shape())
-        loss_func = tf.reduce_mean(tf.nn.softplus(- pos_y * _p_score) + tf.nn.softplus(- neg_y * _n_score))
+        loss_func = tf.reduce_mean(tf.nn.softplus(- self.pos_y * _p_score) + tf.nn.softplus(- self.neg_y * _n_score))
         regul_func = tf.reduce_mean(self.pos_h_embed ** 2 + self.pos_t_embed ** 2 + self.pos_r_embed ** 2 +
                                     self.neg_h_embed ** 2 + self.neg_t_embed ** 2 + self.neg_r_embed ** 2)
         self.loss = loss_func + self.config.l2_reg_lambda * regul_func

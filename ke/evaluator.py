@@ -8,7 +8,7 @@ from tqdm import tqdm
 
 from config import Config
 from ke.data_helper import DataHelper
-from ke.model_utils.saver import Saver
+from ke.utils.saver import Saver
 
 
 class Predictor(object):
@@ -29,6 +29,7 @@ class Predictor(object):
             saver.restore_model(self.sess)
             self.input_x = graph.get_operation_by_name("input_x").outputs[0]
             self.prediction = graph.get_operation_by_name("predict").outputs[0]
+            self.dropout_keep_prob = graph.get_operation_by_name("dropout_keep_prob").outputs[0]
 
     def predict(self, batch_h: List, batch_t: List, batch_r: List):
         """ 用于预测
@@ -41,7 +42,7 @@ class Predictor(object):
         x_data = list(zip(batch_h, batch_t, batch_r)) + [(0, 0, 0)] * (_batch_size - input_size % _batch_size)
         prediction = []
         for input_x in [x_data[i:i + _batch_size] for i in range(0, len(x_data), _batch_size)]:
-            _pred = self.sess.run(self.prediction, feed_dict={self.input_x: input_x})
+            _pred = self.sess.run(self.prediction, feed_dict={self.input_x: input_x, self.dropout_keep_prob: 1.0})
             prediction.extend(_pred.flatten().tolist())
         return np.array(prediction[:input_size])
 

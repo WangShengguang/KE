@@ -32,7 +32,7 @@ class TransR(TransX):
         p_t = self._transfer(pos_matrix, self.pos_t_embed)
         p_r = self.pos_r_embed
         negative_rel = 0
-        if negative_rel == 0:  # config.negative_rel == 0: 关系负例个数为 0，当前默认
+        if negative_rel == 0:  # config.negative_rel == 0: 关系(fake relation)负例个数为 0，当前默认
             n_h = self._transfer(pos_matrix, self.neg_h_embed)
             n_t = self._transfer(pos_matrix, self.neg_t_embed)
             n_r = self.neg_r_embed

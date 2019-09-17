@@ -72,7 +72,7 @@ class DataHelper(object):
         assert len(batch_positive_samples) == len(batch_negative_samples)
         return batch_negative_samples
 
-    def batch_iter(self, data_type, batch_size, _shuffle=True, neg_label=-1.0):
+    def batch_iter(self, data_type, batch_size, _shuffle=True):
         positive_samples = self.data[data_type]
         self.init_negative_samples(positive_samples)
         semi_data_size = len(positive_samples)
@@ -88,5 +88,5 @@ class DataHelper(object):
             _positive_samples = [positive_samples[idx] for idx in batch_idxs]
             _negative_samples = self.get_batch_negative_samples(_positive_samples)
             x_batch = _positive_samples + _negative_samples
-            y_batch = [[1.0]] * semi_batch_size + [[neg_label]] * semi_batch_size
+            y_batch = [[1.0]] * semi_batch_size + [[-1.0]] * semi_batch_size
             yield np.asarray(x_batch), np.asarray(y_batch)

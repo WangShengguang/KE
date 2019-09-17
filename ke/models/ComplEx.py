@@ -22,8 +22,6 @@ class ComplEx(TransX):
                              -1, keep_dims=False, name=name)
 
     def forward(self):
-        pos_y = tf.ones(self.pos_h.get_shape()[0])
-        neg_y = -1 * tf.ones(self.neg_h.get_shape()[0])
 
         pos_h_embed_2 = tf.nn.embedding_lookup(self.ent_embeddings_2, self.pos_h)
         pos_t_embed_2 = tf.nn.embedding_lookup(self.ent_embeddings_2, self.pos_t)
@@ -38,7 +36,7 @@ class ComplEx(TransX):
         _n_score = self._calc(self.neg_h_embed, neg_h_embed_2, self.neg_t_embed, neg_t_embed_2, self.neg_r_embed,
                               neg_r_embed_2)
 
-        loss_func = tf.reduce_mean(tf.nn.softplus(- pos_y * _p_score) + tf.nn.softplus(- neg_y * _n_score))
+        loss_func = tf.reduce_mean(tf.nn.softplus(- self.pos_y * _p_score) + tf.nn.softplus(- self.neg_y * _n_score))
         regul_func = tf.reduce_mean(
             self.pos_h_embed ** 2 + self.pos_t_embed ** 2 + self.pos_r_embed ** 2 +
             self.neg_h_embed ** 2 + self.neg_t_embed ** 2 + self.neg_r_embed ** 2 +

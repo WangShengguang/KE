@@ -28,11 +28,13 @@ class DataConfig(object):
 class TrainConfig(DataConfig):
     sequence_len = 3  # (h,r,t)
     num_classes = 1  # 0 or 1
+    # neg_label = -1.0  # 负样本标签
     batch_size = 8
     epoch_nums = 1000
     # margin loss
     learning_rate = 0.0001
     l2_reg_lambda = 0.001
+    dropout_keep_prob = 0.8
     margin = 1.0
     #
     ent_emb_dim = 128
