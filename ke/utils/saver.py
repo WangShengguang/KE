@@ -93,16 +93,17 @@ class Saver(tf.train.Saver):
                     确保model_name.index,model_name.data-00000-of-00001都存在
         """
         assert mode in ["min_loss", "max_acc", "max_step"], "mode is not exist： {}".format(mode)
-        model_paths = Path(self.checkpoint_dir).joinpath(mode).rglob("*.meta")
-        model_paths = [path for path in model_paths if self.check_valid(path)]
-        print("find {} models from {}".format(len(model_paths), self.checkpoint_dir))
+        ckpt_dir = os.path.join(self.checkpoint_dir, mode)
+        model_paths = Path(ckpt_dir).glob("*.meta")
+        model_paths = [str(path) for path in model_paths if self.check_valid(path)]
+        print("* find {} models from {}".format(len(model_paths), ckpt_dir))
         if model_paths:
             is_reverse = True if mode == "min_loss" else False  # 从差到好(loss ↓, acc ↑, step ↑)
             sorted_model_paths = sorted(
                 model_paths,  # loss,acc,global_step
-                key=lambda path: float(self.meta_path_patten.search(str(path)).group(mode)),
+                key=lambda _path: float(self.meta_path_patten.search(_path).group(mode)),
                 reverse=is_reverse)
-            model_path = str(sorted_model_paths[-1]).strip(".meta")
+            model_path = sorted_model_paths[-1].strip(".meta")
         else:
             model_path = ""  # 默认返回空路径
         return model_path

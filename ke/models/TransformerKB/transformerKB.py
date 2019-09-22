@@ -10,7 +10,6 @@ Transformer network
 
 import tensorflow as tf
 
-from config import Config
 from .modules import ff, positional_encoding, multihead_attention
 from .._Model import Model
 

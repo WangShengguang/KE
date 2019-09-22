@@ -60,7 +60,7 @@ class Trainer(object):
                 model_path = model.saver.restore_model(sess, fail_ok=True)
                 if model_path:
                     print("* Model load from file: {}".format(model_path))
-            for epoch_num in trange(1, Config.max_epoch_nums + 1,
+            for epoch_num in trange(1, max(self.min_num_epoch, Config.max_epoch_nums) + 1,
                                     desc="{} {} train epoch ".format(self.model_name, self.data_set)):
                 losses = []
                 for x_batch, y_batch in self.data_helper.batch_iter(data_type="train",

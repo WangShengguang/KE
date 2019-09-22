@@ -1,6 +1,5 @@
 import tensorflow as tf
 
-from config import Config
 from ._Model import TransX
 
 
@@ -24,7 +23,7 @@ class TransE(TransX):
         self.p_score = tf.reduce_sum(_p_score, -1, keep_dims=True)
         self.n_score = tf.reduce_sum(_n_score, -1, keep_dims=True)
         # Calculating loss to get what the framework will optimize
-        self.loss = tf.reduce_mean(tf.maximum(self.p_score - self.n_score + Config.margin, 0), name="loss")
+        self.loss = tf.reduce_mean(tf.maximum(self.p_score - self.n_score + self.config.margin, 0), name="loss")
 
     def predict_def(self):
         self.predict = tf.reduce_mean(self._calc(self.h_embed, self.t_embed, self.r_embed),
