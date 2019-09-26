@@ -8,14 +8,16 @@ from config import data_dir, Config
 
 
 class DataHelper(object):
-    def __init__(self, data_set):
+    def __init__(self, data_set, model_name):
         """
         :param data_set: 数据集名称
                 在benchmarks目录下，需包含一下几个文件; 第一行为文件行数-1 = 样本数
                 train2id.txt, valid.txt, test.txt :  h,t,r
                 entity2id.txt, relation2id.txt
+        :param model_name 这两个模型使用同一个embedding 矩阵，所以需要统一编码entity2id和relation2id，不能分开编码
         """
         self.data_set = data_set  # 数据集名称
+        self.model_name = model_name
         self.data = {}  # {"train": [(h,t,r), ...], "valid":  [(h,t,r), ...], "test":  [(h,t,r), ...]}
         self.entity2id = {}
         self.relation2id = {}
@@ -37,15 +39,16 @@ class DataHelper(object):
             return lines
 
         self.data = {}
-        count_limit = {"train": Config.train_count, "valid": Config.valid_count, "test": Config.test_count}  # 样本数限制
+        # count_limit = {"train": Config.train_count, "valid": Config.valid_count, "test": Config.test_count}  # 样本数限制
         for data_type in ["train", "valid", "test"]:
             lines = read_data(f"{data_type}2id.txt")
-            self.data[data_type] = [(int(h), int(t), int(r)) for line in lines for h, t, r in [line.split(" ")]][
-                                   :count_limit[data_type]]
+            self.data[data_type] = [(int(h), int(t), int(r)) for line in lines for h, t, r in [line.split(" ")]]
         lines = read_data("entity2id.txt")
         self.entity2id = {entity: int(id) for line in lines for entity, id in [line.split(" ")]}
+        # 这两个模型使用同一个embedding 矩阵，所以需要统一编码，不能分开编码
+        rel_start_size = len(self.entity2id) if self.model_name in ["ConvKB", "TransformerKB"] else 0
         lines = read_data("relation2id.txt")
-        self.relation2id = {relation: int(id) for line in lines for relation, id in [line.split(" ")]}
+        self.relation2id = {relation: rel_start_size + int(id) for line in lines for relation, id in [line.split(" ")]}
 
     def init_negative_samples(self, positive_samples):
         if not self.inited_negative:

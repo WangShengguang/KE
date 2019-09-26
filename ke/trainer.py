@@ -17,7 +17,7 @@ class Trainer(object):
         self.model_name = model_name
         self.data_set = data_set
         self.min_num_epoch = min_num_epoch
-        self.data_helper = DataHelper(data_set)
+        self.data_helper = DataHelper(data_set,model_name)
         # evaluate
         # self.evaluator = None
         self.min_loss = 100000

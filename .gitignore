@@ -108,6 +108,7 @@ venv.bak/
 
 #ckpt
 model_ckpt/
+output/
 
 #
 local/

@@ -27,6 +27,13 @@ Knowledge Embedding   ，知识编码
     多轮训练（断点续训）
     load max_step 而不是min_loss
 
+## Debug
+```bash
+    ipython --pdb manage.py 
+    python3 -m ipdb manage.py
+```
+    
+
 ## Reference
 - [Awesome Knowledge Graph Embedding Approaches](https://gist.github.com/mommi84/07f7c044fa18aaaa7b5133230207d8d4)
 

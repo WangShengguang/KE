@@ -1,5 +1,6 @@
 import logging
 import os
+import sys
 
 from ke.utils.gpu_selector import get_available_gpu
 from ke.utils.hparams import Hparams
@@ -33,22 +34,37 @@ def run_all(model_name, data_set, mode):
         all_data_sets = data_sets[:-1]
     else:
         all_data_sets = [data_set]
-    dataset_epoch_nums = {"WN18RR": 5, "lawdata": 100, "lawdata_new": 1000, "FB15K": 3}
+    dataset_epoch_nums = {"WN18RR": 5, "lawdata": 100, "lawdata_new": 1000, "traffic": 10, "FB15K": 3}
     for data_set in all_data_sets:
-
         num_epoch = dataset_epoch_nums[data_set]
         for model_name in all_models:
             if mode == "train":
+                if model_name == "TransformerKB":
+                    num_epoch = num_epoch * 3
                 from ke.trainer import Trainer
                 Trainer(model_name=model_name, data_set=data_set, min_num_epoch=num_epoch).run()
             test(model_name, data_set)
+
+
+def export_embedding(data_set):
+    logging_config("export_embedding.log")
+    from triple_sim_rank.export_embedding import EmbeddingExporter
+    for model_name in models[:-1]:
+        embedding_save_path = EmbeddingExporter(data_set=data_set, model_name=model_name).export_embedding()
+        print("embedding save to : {}".format(embedding_save_path))
+
+
+def sim_rank(data_set):
+    logging_config("sim_rank.log")
+    from triple_sim_rank.sim_rank import create_all_sim_rank
+    create_all_sim_rank(data_set, models[:-1])
 
 
 models = ["Analogy", "ComplEx", "DistMult", "HolE", "RESCAL",
           "TransD", "TransE", "TransH", "TransR",
           "ConvKB", "TransformerKB", "all"]
 
-data_sets = ["lawdata", "lawdata_new", "FB15K", "WN18RR", "all"]
+data_sets = ["lawdata", "lawdata_new", "traffic", "FB15K", "WN18RR", "all"]
 
 
 def main():
@@ -57,11 +73,14 @@ def main():
         --allow_gpus, --cpu_only
     '''
     parser = Hparams().parser
-    group = parser.add_mutually_exclusive_group(required=True)  # 一组互斥参数,且至少需要互斥参数中的一个
+    group = parser.add_mutually_exclusive_group(
+        required=not ({"--export_embedding", "--sim_rank"} & set(sys.argv)))  # 一组互斥参数,且至少需要互斥参数中的一个
     # 函数名参数
     parser.add_argument('--dataset', type=str, choices=data_sets, required=True, help="数据集")
     group.add_argument('--train', type=str, choices=models, help="训练")
     group.add_argument('--test', type=str, choices=models, help="测试")
+    parser.add_argument('--export_embedding', action="store_true", help="导出entity embedding & relation embedding")
+    parser.add_argument('--sim_rank', action="store_true", help="推荐相似案由")
     # parse args
     args = parser.parse_args()
     if args.cpu_only:
@@ -73,12 +92,13 @@ def main():
         print("* using GPU: {} ".format(available_gpu))  # config前不可logging，否则config失效
     # set_process_name(args.process_name)  # 设置进程名
     if args.train:
-        model_name = args.train
-        mode = "train"
-    else:  # args.test:
-        model_name = args.test
-        mode = "test"
-    run_all(model_name, args.dataset, mode)
+        run_all(model_name=args.train, data_set=args.dataset, mode="train")
+    elif args.test:  # args.test:
+        run_all(model_name=args.test, data_set=args.dataset, mode="test")
+    elif args.export_embedding:
+        export_embedding(data_set=args.dataset)
+    elif args.sim_rank:
+        sim_rank(data_set=args.dataset)
 
 
 if __name__ == '__main__':
@@ -87,6 +107,8 @@ if __name__ == '__main__':
         python3 manage.py  --train ConvKB --dataset lawdata  
         python3 manage.py --train TransformerKB --dataset WN18RR --process_name TW &
         python3 manage.py --test TransformerKB --dataset FB15K --process_name TF &
+        python3 manage.py --export_embedding
+        python3 manage.py -m ipdb --sim_rank --dataset traffic
         nohup python3 manage.py  --train all --dataset lawdata_new   &>train_all.out&
     """
     main()

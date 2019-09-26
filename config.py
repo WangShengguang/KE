@@ -9,6 +9,7 @@ __all__ = ["Config"]
 cur_dir = os.path.dirname(os.path.abspath(__file__))
 root_dir = cur_dir
 data_dir = os.path.join(root_dir, "benchmarks")
+output_dir = os.path.join(root_dir, "output")
 
 # random seed
 rand_seed = 1234
@@ -20,9 +21,8 @@ class DataConfig(object):
     """
         数据和模型所在文件夹
     """
-    model_ckpt_dir = os.path.join(root_dir, "model_ckpt")
-    tf_ckpt_dir = os.path.join(model_ckpt_dir, "tf")
-    keras_ckpt_dir = os.path.join(model_ckpt_dir, "keras")
+    tf_ckpt_dir = os.path.join(output_dir, "tf_ckpt")
+    keras_ckpt_dir = os.path.join(output_dir, "keras_ckpt")
 
 
 class TrainConfig(DataConfig):
@@ -77,7 +77,23 @@ class TfConfig(object):
                                                             allow_growth=True))
 
 
-class Config(Evaluate, TfConfig):
+class EmbeddingExportConfig(object):
+    embedding_json_path_tmpl = os.path.join(output_dir, "{data_set}", "embeddings", "{model_name}.json")
+
+
+class SimRankConfig(object):
+    # result file
+    cases_triples_json_tmpl = os.path.join(data_dir, "{data_set}", "cases_triples_result.json")  # 案由对应triple
+    case_list_tmpl = os.path.join(data_dir, "{data_set}", "case_list.txt")  # 所有案由号
+    #
+    # cases_dir = os.path.join(os.path.dirname(root_dir), "traffic500")  # 裁判文书来源->ner->re->triple->ke->rank
+    # out file
+    sim_rank_dir = os.path.join(output_dir, "sim_rank")
+    os.makedirs(sim_rank_dir, exist_ok=True)
+    rank_result_csv = os.path.join(sim_rank_dir, "sim_rank_result.csv")
+
+
+class Config(Evaluate, TfConfig, EmbeddingExportConfig, SimRankConfig):
     train_count = -1  # all count
     valid_count = 1000
     test_count = 100

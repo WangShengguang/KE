@@ -16,7 +16,7 @@ class ConvKB(Model):
     def embedding_def(self, num_ent_tags, num_rel_tags, ent_emb_dim, rel_emb_dim):
         self.W = tf.Variable(tf.random_uniform([num_ent_tags + num_rel_tags, self.embedding_dim],
                                                -math.sqrt(1.0 / self.embedding_dim),
-                                               math.sqrt(1.0 / self.embedding_dim), seed=1234), name="W")
+                                               math.sqrt(1.0 / self.embedding_dim), seed=1234), name="ConvKB-W")
 
     def forward(self):
         l2_loss = tf.constant(0.0)

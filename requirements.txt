@@ -5,3 +5,4 @@ tensor2tensor
 sklearn
 torch
 tqdm
+ipython

@@ -16,7 +16,7 @@ class Predictor(object):
         self.model_name = model_name
         self.data_set = data_set
         # self.rank_metrics = RankMetrics()
-        self.data_helper = DataHelper(data_set=data_set)
+        self.data_helper = DataHelper(data_set=data_set, model_name=model_name)
         self.entity_nums = len(self.data_helper.entity2id)
         self.relation_nums = len(self.data_helper.relation2id)
         self.load_model()
