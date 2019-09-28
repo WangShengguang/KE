@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from ._Model import TransX
+from ._BaseModel import TransX
 
 
 def tf_resize(tensor, axis, size):

@@ -5,14 +5,20 @@ import random
 import numpy as np
 import pandas as pd
 
-from config import Config
+from config import SimRankConfig
 from ke.data_helper import DataHelper
-from triple_sim_rank.export_embedding import EmbeddingExporter
+from ke.export_embedding import EmbeddingExporter
 from triple_sim_rank.utils import graph_embedding
 from triple_sim_rank.utils import split_triple, get_hit_type
 
 
 def cos_sim(vector1, vector2):
+    """
+    https://blog.csdn.net/hqh131360239/article/details/79061535
+    :param vector1:
+    :param vector2:
+    :return:
+    """
     vector_a = np.mat(vector1)
     vector_b = np.mat(vector2)
     num = float(vector_a * vector_b.T)
@@ -26,8 +32,8 @@ def cos_sim(vector1, vector2):
 
 def ranking(vector_data, case_id, choice_list):
     """
-    :param vector_data: {case_id:[triple,triple]}
-    :param case_id:
+    :param vector_data: {case_id:[[h,t,r],[h,t,r],...]}   head_emb,tail_emb,rel_emb
+    :param case_id: 文章
     :param choice_list: 选取相似度列表的 第n项 作为结果
     :return:
     """
@@ -51,25 +57,25 @@ def ranking(vector_data, case_id, choice_list):
 
 class TripleSimRank(object):
 
-    def __init__(self, data_set, model_name):
+    def __init__(self, data_set, model_name, case_nums=10):
         self.data_set = data_set
         self.model_name = model_name
+        self.config = SimRankConfig(data_set=data_set, model_name=model_name)
         self.data_helper = DataHelper(data_set=data_set, model_name=model_name)
         self.embedding_exporter = EmbeddingExporter(data_set=data_set, model_name=model_name)
-        self.load_triples_cases()
+        self.load_triples_cases(case_nums)
 
     def load_triples_cases(self, case_nums=10):
-        print("*source cases_triples {}".format(Config.cases_triples_json_tmpl.format(data_set=self.data_set)))
-        with open(Config.cases_triples_json_tmpl.format(data_set=self.data_set), 'r', encoding='utf-8') as f:
+        print("*source cases_triples {}".format(self.config.cases_triples_json))
+        with open(self.config.cases_triples_json, 'r', encoding='utf-8') as f:
             self.triples = json.load(f)
-        case_list_file = Config.case_list_tmpl.format(data_set=self.data_set)
-        if not os.path.isfile(case_list_file):
+        if not os.path.isfile(self.config.case_list_txt):
             case_list = [case_id for case_id in self.triples.keys() if self.triples[case_id]]
             choice_case_list = random.sample(case_list, min(case_nums, len(case_list)))
-            with open(case_list_file, 'w', encoding='utf-8') as f:
+            with open(self.config.case_list_txt, 'w', encoding='utf-8') as f:
                 f.write("\n".join(choice_case_list))
                 # f.flush()
-        with open(case_list_file, "r", encoding="utf-8") as f:
+        with open(self.config.case_list_txt, "r", encoding="utf-8") as f:
             self.case_list = [case_id.strip() for case_id in f.readlines()]  # 所有案由号
 
     def sim_rank(self, choice_list=(0, 1, 3, 4, 7, 8, 12, 13, 18, 19)):
@@ -101,11 +107,10 @@ class TripleSimRank(object):
             else:
                 similar_case = ranking(others_vector, case_id, choice_list)
             rank_result[case_id] = similar_case
-        out_rank_file = Config.rank_result_csv_tmpl.format(data_set=self.data_set)
-        os.makedirs(os.path.dirname(out_rank_file), exist_ok=True)
-        with open(out_rank_file, 'w', encoding='utf-8') as f:
+        # os.makedirs(os.path.dirname(self.config.rank_result_csv), exist_ok=True)
+        with open(self.config.rank_result_csv, 'w', encoding='utf-8') as f:
             json.dump(rank_result, f, ensure_ascii=False, indent=4)
-        return rank_result, out_rank_file
+        return rank_result
 
 
 def create_all_sim_rank(data_set, model_names):
@@ -113,12 +118,12 @@ def create_all_sim_rank(data_set, model_names):
     data_results = []
     for model_name in model_names:
         triple_sim_ranker = TripleSimRank(data_set=data_set, model_name=model_name)
-        rank_result, out_rank_file = triple_sim_ranker.sim_rank(choice_list=choice_list)
+        rank_result = triple_sim_ranker.sim_rank(choice_list=choice_list)
         for case_id in triple_sim_ranker.case_list:
             simi_cases = rank_result[case_id]
             for i, simi_case in enumerate(simi_cases):
                 data_results.append([case_id, simi_case, model_name, i + 1])
     column_names = ["案件案号", "类似案件案号", "算法", "算法给的相似性排序"]
-    save_path = Config.rank_result_csv_tmpl.format(data_set=data_set)
-    pd.DataFrame(data=data_results, columns=column_names).to_csv(save_path, index=False, encoding="utf-8-sig")
-    print("* save to :{}".format(save_path))
+    rank_result_csv = SimRankConfig(data_set=data_set, model_name="all").rank_result_csv
+    pd.DataFrame(data=data_results, columns=column_names).to_csv(rank_result_csv, index=False, encoding="utf-8-sig")
+    print("* save to :{}".format(rank_result_csv))

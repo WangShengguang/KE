@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from ._Model import TransX
+from ._BaseModel import TransX
 
 
 class RESCAL(TransX):

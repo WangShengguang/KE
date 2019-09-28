@@ -11,7 +11,7 @@ Transformer network
 import tensorflow as tf
 
 from .modules import ff, positional_encoding, multihead_attention
-from .._Model import Model
+from .._BaseModel import Model
 
 
 class Transformer(object):

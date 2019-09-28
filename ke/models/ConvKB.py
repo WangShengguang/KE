@@ -1,7 +1,7 @@
 import math
 
 import tensorflow as tf
-from ._Model import Model
+from ._BaseModel import Model
 
 
 class ConvKB(Model):

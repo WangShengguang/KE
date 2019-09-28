@@ -1,6 +1,5 @@
 import logging
 import os
-import sys
 
 from ke.utils.gpu_selector import get_available_gpu
 from ke.utils.hparams import Hparams
@@ -26,36 +25,30 @@ def test(model_name, data_set):
 
 def run_all(model_name, data_set, mode):
     logging_config(f"{model_name}_{data_set}_{mode}.log")
-    if model_name == "all":
-        all_models = models
-    else:
-        all_models = [model_name]
-    if data_set == "all":
-        all_data_sets = data_sets
-    else:
-        all_data_sets = [data_set]
-    dataset_epoch_nums = {"WN18RR": 5, "lawdata": 100, "lawdata_new": 1000, "traffic": 10, "FB15K": 3}
+    all_models = models if model_name == "all" else [model_name]
+    all_data_sets = data_sets if data_set == "all" else [data_set]
+    dataset2epoch_nums = {"WN18RR": 5, "lawdata": 100, "lawdata_new": 1000, "traffic": 10, "FB15K": 3}
     for data_set in all_data_sets:
-        num_epoch = dataset_epoch_nums[data_set]
+        num_epoch = dataset2epoch_nums[data_set]
         for model_name in all_models:
             if mode == "train":
                 if model_name == "TransformerKB":
                     num_epoch = num_epoch * 3
                 from ke.trainer import Trainer
                 Trainer(model_name=model_name, data_set=data_set, min_num_epoch=num_epoch).run()
-            test(model_name, data_set)
+            test(model_name, data_set)  # 训练结束测试
 
 
 def export_embedding(data_set):
-    logging_config("export_embedding.log")
-    from triple_sim_rank.export_embedding import EmbeddingExporter
+    logging_config(f"export_{data_set}_embedding.log")
+    from ke.export_embedding import EmbeddingExporter
     for model_name in models:
         embedding_save_path = EmbeddingExporter(data_set=data_set, model_name=model_name).export_embedding()
         print("embedding save to : {}".format(embedding_save_path))
 
 
 def sim_rank(data_set):
-    logging_config("sim_rank.log")
+    logging_config(f"sim_rank_{data_set}.log")
     from triple_sim_rank.sim_rank import create_all_sim_rank
     create_all_sim_rank(data_set, models)
 

@@ -1,5 +1,3 @@
-import random
-
 import numpy as np
 
 
@@ -61,5 +59,3 @@ def graph_embedding(triple, ent_embedding, rel_embedding, ent2id, rel2id):
         vector = np.concatenate((ent1_vector, rel_vector, ent2_vector), axis=-1)
         graph_vector[case_id] = vector
     return graph_vector
-
-

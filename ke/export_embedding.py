@@ -4,7 +4,7 @@ import os
 
 import tensorflow as tf
 
-from config import Config
+from config import EmbeddingExportConfig
 from ke.utils.saver import Saver
 
 
@@ -12,12 +12,13 @@ class EmbeddingExporter(object):
     def __init__(self, data_set, model_name):
         self.data_set = data_set
         self.model_name = model_name
-        self.embedding_json_path = Config.embedding_json_path_tmpl.format(data_set=data_set, model_name=model_name)
+        self.config = EmbeddingExportConfig(data_set=data_set)
+        self.embedding_json_path = os.path.join(self.config.embedding_dir, f"{model_name}.json")
         os.makedirs(os.path.dirname(self.embedding_json_path), exist_ok=True)
 
-    def export_embedding(self, ):
+    def export_embedding(self):
         graph = tf.Graph()
-        sess = tf.Session(config=Config.session_conf, graph=graph)
+        sess = tf.Session(config=self.config.session_conf, graph=graph)
         with graph.as_default(), sess.as_default():  # self 无法load TransformerKB
             model_path = Saver(self.model_name, relative_dir=self.data_set, allow_empty=True).restore_model(sess)
             print("* load model path :{}".format(model_path))

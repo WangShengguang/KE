@@ -17,7 +17,7 @@ class Model(object):
     def __init__(self, data_set=None, num_ent_tags=None, num_rel_tags=None,
                  ent_emb_dim=Config.ent_emb_dim, rel_emb_dim=Config.rel_emb_dim,
                  sequence_length=Config.sequence_len, batch_size=Config.batch_size, num_classes=Config.num_classes,
-                 name=None, checkpoint_dir=Config.output_dir):
+                 name=None):
         """ 为统一训练方式，几个属性张量必须在子类实现
         input_x,input_y,loss,train_op,predict
         :param data_set: 数据集名称，用来作为模型保存的相对目录
@@ -25,7 +25,6 @@ class Model(object):
         """
         # for model save & load
         self.name = name if name else self.__class__.__name__  # model name
-        self.checkpoint_dir = checkpoint_dir
         self.data_set = data_set
         self.config = Config()
         # params
@@ -52,8 +51,7 @@ class Model(object):
         self.forward()  # forward propagate
         self.predict_def()
         self.backward()  # backward propagate
-        self.saver = Saver(max_to_keep=Config.max_to_keep, model_name=self.name,
-                           checkpoint_dir=self.checkpoint_dir, relative_dir=self.data_set)
+        self.saver = Saver(data_set=self.data_set, model_name=self.name)
         assert isinstance(self.loss, Tensor), "please set_attr loss for backforward"
         assert isinstance(self.predict, Tensor), "please set_attr predict for predict"
         assert self.predict.name == "predict:0", "predict variable must be set name 'predict'"
@@ -90,7 +88,7 @@ class TransX(Model):
     def __init__(self, data_set=None, num_ent_tags=None, num_rel_tags=None,
                  ent_emb_dim=Config.ent_emb_dim, rel_emb_dim=Config.rel_emb_dim,
                  sequence_length=Config.sequence_len, batch_size=Config.batch_size, num_classes=Config.num_classes,
-                 name=None, checkpoint_dir=Config.output_dir):
+                 name=None):
         """ 为统一训练方式，几个属性张量必须在子类实现
         input_x,input_y,loss,train_op,predict
         :param data_set: 数据集名称，用来作为模型保存的相对目录
@@ -100,7 +98,7 @@ class TransX(Model):
         super().__init__(data_set=data_set, num_ent_tags=num_ent_tags, num_rel_tags=num_rel_tags,
                          ent_emb_dim=ent_emb_dim, rel_emb_dim=rel_emb_dim,
                          sequence_length=sequence_length, batch_size=batch_size, num_classes=num_classes,
-                         name=name, checkpoint_dir=checkpoint_dir)
+                         name=name)
 
     def input_def(self):
         positive_indices = tf.where(tf.greater(tf.reshape(self.input_y, [-1]), 0.999))

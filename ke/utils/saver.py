@@ -7,48 +7,34 @@ from pathlib import Path
 
 import tensorflow as tf
 
-from config import Config
+from config import CkptConfig
 
 
-class Saver(tf.train.Saver):
+class Saver(object):
     """ https://www.tensorflow.org/guide/saved_model?hl=zh-CN
     主要实现 TensorFlow save 和 load 的统一管理，防止格式不统一造成不方便；
     所有模型使用同一种命名格式保存 model-0.01-0.9.ckpt.meta ...
     """
 
-    def __init__(self, model_name="", checkpoint_dir=Config.output_dir, relative_dir=None, **kwargs):
+    def __init__(self, data_set, model_name, to_save=True):
         """
         :param model_name:  模型名
         :param checkpoint_dir:  模型存储目录
         """
-        super().__init__(**kwargs)
-        self.model_name = model_name
-        ckpt_dir = os.path.join(checkpoint_dir, relative_dir) if relative_dir else checkpoint_dir
-        self.base_checkpoint_dir = os.path.join(ckpt_dir, "tf_ckpt")
-        self.config_saved = False
-        self.__init_model_path()
-
-    def __init_model_path(self):
-        self.checkpoint_dir = os.path.join(self.base_checkpoint_dir, self.model_name)
-        self.min_loss_ckpt_dir = os.path.join(self.checkpoint_dir, "min_loss")
-        self.max_acc_ckpt_dir = os.path.join(self.checkpoint_dir, "max_acc")
-        self.max_step_ckpt_dir = os.path.join(self.checkpoint_dir, "max_step")
-        for _dir in [self.max_acc_ckpt_dir, self.min_loss_ckpt_dir, self.max_step_ckpt_dir]:
-            os.makedirs(_dir, exist_ok=True)
+        self.config = CkptConfig(data_set, model_name)
+        self.checkpoint_dir = self.config.tf_ckpt_dir
         self.ckpt_prefix_template = "model-{loss:.3f}-{accuracy:.3f}.ckpt"
         self.meta_path_patten = re.compile(
             "model-(?P<min_loss>\d+\.\d+)-(?P<max_acc>[01]\.\d+).ckpt-(?P<max_step>\d+).meta")
-        self.min_loss_ckpt_path_tmpl = os.path.join(self.min_loss_ckpt_dir, self.ckpt_prefix_template)
-        self.max_acc_ckpt_path_tmpl = os.path.join(self.max_acc_ckpt_dir, self.ckpt_prefix_template)
-        self.max_step_ckpt_path_tmpl = os.path.join(self.max_step_ckpt_dir, self.ckpt_prefix_template)
-        self.ckpt_tmpls = {"min_loss": self.min_loss_ckpt_path_tmpl,
-                           "max_acc": self.max_acc_ckpt_path_tmpl,
-                           "max_step": self.max_step_ckpt_path_tmpl}
+        self.modes = ["max_acc", "min_loss", "max_step"]
+        if to_save:
+            self.savers = {key: tf.train.Saver(max_to_keep=self.config.max_to_keep) for key in self.modes}
+        self.config_saved = False
 
-    def __save_config(self):
+    def __save_config_file(self):
         # save config.py 将配置参数保存下来
         if not self.config_saved:
-            src_config_path = inspect.getabsfile(Config().__class__)
+            src_config_path = inspect.getabsfile(self.config.__class__)
             dst_config_path = os.path.join(self.checkpoint_dir, Path(src_config_path).with_suffix(".txt").name)
             shutil.copyfile(src_config_path, dst_config_path)
             self.config_saved = True
@@ -62,13 +48,17 @@ class Saver(tf.train.Saver):
         :type accuracy: float
         :return: model_checkpoint_path
         """
-        self.__save_config()
-        ckpt_prefix = self.ckpt_tmpls[mode].format(loss=loss, accuracy=accuracy)
-        model_checkpoint_path = self.save(sess, ckpt_prefix, global_step=global_step, )
-        logging.info("* Model save to file: {}".format(model_checkpoint_path))
-        return model_checkpoint_path
+        assert mode in self.modes, "mode is not exist： {}".format(mode)
+        self.__save_config_file()
+        _ckpt_dir = os.path.join(self.checkpoint_dir, mode)
+        os.makedirs(_ckpt_dir, exist_ok=True)
+        ckpt_prefix = os.path.join(_ckpt_dir, self.ckpt_prefix_template.format(loss=loss, accuracy=accuracy))
+        saver = self.savers[mode]
+        ckpt_save_path = saver.save(sess, ckpt_prefix, global_step=global_step)
+        logging.info("* Model save to file: {}".format(ckpt_save_path))
+        return ckpt_save_path
 
-    def restore_model(self, sess, mode=Config.load_model_mode, fail_ok=False):
+    def restore_model(self, sess, mode=CkptConfig.load_model_mode, fail_ok=False):
         """
             https://www.tensorflow.org/guide/saved_model?hl=zh-CN
         :param sess: TensorFlow Session Object
@@ -76,6 +66,7 @@ class Saver(tf.train.Saver):
         :param fail_ok restore失败是否报错; 默认load失败报错
         :return: load_path
         """
+        assert mode in self.modes, "mode is not exist： {}".format(mode)
         model_path = self.get_model_path(mode=mode)
         if not Path(model_path + ".meta").is_file():
             print("fail load model from checkpoint_dir : {}... ".format(self.checkpoint_dir))
@@ -93,7 +84,7 @@ class Saver(tf.train.Saver):
         :return: model_path  model_name.meta
                     确保model_name.index,model_name.data-00000-of-00001都存在
         """
-        assert mode in ["min_loss", "max_acc", "max_step"], "mode is not exist： {}".format(mode)
+        assert mode in self.modes, "mode is not exist： {}".format(mode)
         ckpt_dir = os.path.join(self.checkpoint_dir, mode)
         model_paths = Path(ckpt_dir).glob("*.meta")
         model_paths = [str(path) for path in model_paths if self.check_valid(path)]

@@ -1,7 +1,7 @@
 # coding:utf-8
 import tensorflow as tf
 
-from ._Model import TransX
+from ._BaseModel import TransX
 
 
 class ComplEx(TransX):

@@ -25,9 +25,8 @@ class Predictor(object):
         graph = tf.Graph()
         self.sess = tf.Session(config=Config.session_conf, graph=graph)
         with graph.as_default(), self.sess.as_default():  # self 无法load TransformerKB
-            saver = Saver(self.model_name, relative_dir=self.data_set, allow_empty=True)
-            model_path = saver.restore_model(self.sess)
-            print(model_path)
+            model_path = Saver(self.data_set, self.model_name, to_save=False).restore_model(self.sess)
+            print("load model from : {}".format(model_path))
             self.input_x = graph.get_operation_by_name("input_x").outputs[0]
             self.prediction = graph.get_operation_by_name("predict").outputs[0]
             self.dropout_keep_prob = graph.get_operation_by_name("dropout_keep_prob").outputs[0]
