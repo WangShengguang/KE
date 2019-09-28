@@ -17,7 +17,7 @@ class Model(object):
     def __init__(self, data_set=None, num_ent_tags=None, num_rel_tags=None,
                  ent_emb_dim=Config.ent_emb_dim, rel_emb_dim=Config.rel_emb_dim,
                  sequence_length=Config.sequence_len, batch_size=Config.batch_size, num_classes=Config.num_classes,
-                 name=None, checkpoint_dir=Config.tf_ckpt_dir):
+                 name=None, checkpoint_dir=Config.output_dir):
         """ 为统一训练方式，几个属性张量必须在子类实现
         input_x,input_y,loss,train_op,predict
         :param data_set: 数据集名称，用来作为模型保存的相对目录
@@ -90,7 +90,7 @@ class TransX(Model):
     def __init__(self, data_set=None, num_ent_tags=None, num_rel_tags=None,
                  ent_emb_dim=Config.ent_emb_dim, rel_emb_dim=Config.rel_emb_dim,
                  sequence_length=Config.sequence_len, batch_size=Config.batch_size, num_classes=Config.num_classes,
-                 name=None, checkpoint_dir=Config.tf_ckpt_dir):
+                 name=None, checkpoint_dir=Config.output_dir):
         """ 为统一训练方式，几个属性张量必须在子类实现
         input_x,input_y,loss,train_op,predict
         :param data_set: 数据集名称，用来作为模型保存的相对目录

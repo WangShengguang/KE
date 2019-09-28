@@ -59,7 +59,7 @@ class TripleSimRank(object):
         self.load_triples_cases()
 
     def load_triples_cases(self, case_nums=10):
-        print("* {}".format(Config.cases_triples_json_tmpl.format(data_set=self.data_set)))
+        print("*source cases_triples {}".format(Config.cases_triples_json_tmpl.format(data_set=self.data_set)))
         with open(Config.cases_triples_json_tmpl.format(data_set=self.data_set), 'r', encoding='utf-8') as f:
             self.triples = json.load(f)
         case_list_file = Config.case_list_tmpl.format(data_set=self.data_set)
@@ -101,7 +101,8 @@ class TripleSimRank(object):
             else:
                 similar_case = ranking(others_vector, case_id, choice_list)
             rank_result[case_id] = similar_case
-        out_rank_file = os.path.join(Config.sim_rank_dir, "{}.json".format(self.model_name))
+        out_rank_file = Config.rank_result_csv_tmpl.format(data_set=self.data_set)
+        os.makedirs(os.path.dirname(out_rank_file), exist_ok=True)
         with open(out_rank_file, 'w', encoding='utf-8') as f:
             json.dump(rank_result, f, ensure_ascii=False, indent=4)
         return rank_result, out_rank_file
@@ -118,4 +119,6 @@ def create_all_sim_rank(data_set, model_names):
             for i, simi_case in enumerate(simi_cases):
                 data_results.append([case_id, simi_case, model_name, i + 1])
     column_names = ["案件案号", "类似案件案号", "算法", "算法给的相似性排序"]
-    pd.DataFrame(data=data_results, columns=column_names).to_csv(Config.rank_result_csv)
+    save_path = Config.rank_result_csv_tmpl.format(data_set=data_set)
+    pd.DataFrame(data=data_results, columns=column_names).to_csv(save_path, index=False, encoding="utf-8-sig")
+    print("* save to :{}".format(save_path))

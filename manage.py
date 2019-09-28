@@ -27,11 +27,11 @@ def test(model_name, data_set):
 def run_all(model_name, data_set, mode):
     logging_config(f"{model_name}_{data_set}_{mode}.log")
     if model_name == "all":
-        all_models = models[:-1]
+        all_models = models
     else:
         all_models = [model_name]
     if data_set == "all":
-        all_data_sets = data_sets[:-1]
+        all_data_sets = data_sets
     else:
         all_data_sets = [data_set]
     dataset_epoch_nums = {"WN18RR": 5, "lawdata": 100, "lawdata_new": 1000, "traffic": 10, "FB15K": 3}
@@ -49,7 +49,7 @@ def run_all(model_name, data_set, mode):
 def export_embedding(data_set):
     logging_config("export_embedding.log")
     from triple_sim_rank.export_embedding import EmbeddingExporter
-    for model_name in models[:-1]:
+    for model_name in models:
         embedding_save_path = EmbeddingExporter(data_set=data_set, model_name=model_name).export_embedding()
         print("embedding save to : {}".format(embedding_save_path))
 
@@ -57,14 +57,14 @@ def export_embedding(data_set):
 def sim_rank(data_set):
     logging_config("sim_rank.log")
     from triple_sim_rank.sim_rank import create_all_sim_rank
-    create_all_sim_rank(data_set, models[:-1])
+    create_all_sim_rank(data_set, models)
 
 
 models = ["Analogy", "ComplEx", "DistMult", "HolE", "RESCAL",
           "TransD", "TransE", "TransH", "TransR",
-          "ConvKB", "TransformerKB", "all"]
+          "ConvKB", "TransformerKB"]
 
-data_sets = ["lawdata", "lawdata_new", "traffic", "FB15K", "WN18RR", "all"]
+data_sets = ["lawdata", "lawdata_new", "traffic", "FB15K", "WN18RR"]
 
 
 def main():
@@ -73,14 +73,13 @@ def main():
         --allow_gpus, --cpu_only
     '''
     parser = Hparams().parser
-    group = parser.add_mutually_exclusive_group(
-        required=not ({"--export_embedding", "--sim_rank"} & set(sys.argv)))  # 一组互斥参数,且至少需要互斥参数中的一个
+    group = parser.add_mutually_exclusive_group(required=True)  # 一组互斥参数,且至少需要互斥参数中的一个
     # 函数名参数
-    parser.add_argument('--dataset', type=str, choices=data_sets, required=True, help="数据集")
-    group.add_argument('--train', type=str, choices=models, help="训练")
-    group.add_argument('--test', type=str, choices=models, help="测试")
-    parser.add_argument('--export_embedding', action="store_true", help="导出entity embedding & relation embedding")
-    parser.add_argument('--sim_rank', action="store_true", help="推荐相似案由")
+    parser.add_argument('--dataset', type=str, choices=data_sets + ["all"], required=True, help="数据集")
+    group.add_argument('--train', type=str, choices=models + ["all"], help="训练")
+    group.add_argument('--test', type=str, choices=models + ["all"], help="测试")
+    group.add_argument('--export_embedding', action="store_true", help="导出entity embedding & relation embedding")
+    group.add_argument('--sim_rank', action="store_true", help="推荐相似案由")
     # parse args
     args = parser.parse_args()
     if args.cpu_only:

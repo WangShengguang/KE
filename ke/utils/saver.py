@@ -16,14 +16,15 @@ class Saver(tf.train.Saver):
     所有模型使用同一种命名格式保存 model-0.01-0.9.ckpt.meta ...
     """
 
-    def __init__(self, model_name="", checkpoint_dir=Config.tf_ckpt_dir, relative_dir=None, **kwargs):
+    def __init__(self, model_name="", checkpoint_dir=Config.output_dir, relative_dir=None, **kwargs):
         """
         :param model_name:  模型名
         :param checkpoint_dir:  模型存储目录
         """
         super().__init__(**kwargs)
         self.model_name = model_name
-        self.base_checkpoint_dir = os.path.join(checkpoint_dir, relative_dir) if relative_dir else checkpoint_dir
+        ckpt_dir = os.path.join(checkpoint_dir, relative_dir) if relative_dir else checkpoint_dir
+        self.base_checkpoint_dir = os.path.join(ckpt_dir, "tf_ckpt")
         self.config_saved = False
         self.__init_model_path()
 

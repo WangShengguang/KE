@@ -21,8 +21,9 @@ class DataConfig(object):
     """
         数据和模型所在文件夹
     """
-    tf_ckpt_dir = os.path.join(output_dir, "tf_ckpt")
-    keras_ckpt_dir = os.path.join(output_dir, "keras_ckpt")
+    # tf_ckpt_dir = os.path.join(output_dir, "tf_ckpt")
+    # keras_ckpt_dir = os.path.join(output_dir, "keras_ckpt")
+    output_dir = output_dir
 
 
 class TrainConfig(DataConfig):
@@ -88,9 +89,7 @@ class SimRankConfig(object):
     #
     # cases_dir = os.path.join(os.path.dirname(root_dir), "traffic500")  # 裁判文书来源->ner->re->triple->ke->rank
     # out file
-    sim_rank_dir = os.path.join(output_dir, "sim_rank")
-    os.makedirs(sim_rank_dir, exist_ok=True)
-    rank_result_csv = os.path.join(sim_rank_dir, "sim_rank_result.csv")
+    rank_result_csv_tmpl = os.path.join(output_dir, "{data_set}", "sim_rank", "sim_rank_result.csv")
 
 
 class Config(Evaluate, TfConfig, EmbeddingExportConfig, SimRankConfig):
