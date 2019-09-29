@@ -19,13 +19,13 @@ class Saver(object):
     def __init__(self, data_set, model_name, to_save=True):
         """
         :param model_name:  模型名
-        :param checkpoint_dir:  模型存储目录
+        :param data_set:  所用数据集
         """
         self.config = CkptConfig(data_set, model_name)
         self.checkpoint_dir = self.config.tf_ckpt_dir
         self.ckpt_prefix_template = "model-{loss:.3f}-{accuracy:.3f}.ckpt"
         self.meta_path_patten = re.compile(
-            "model-(?P<min_loss>\d+\.\d+)-(?P<max_acc>[01]\.\d+).ckpt-(?P<max_step>\d+).meta")
+            r"model-(?P<min_loss>\d+\.\d+)-(?P<max_acc>[01]\.\d+)\.ckpt-(?P<max_step>\d+).meta")
         self.modes = ["max_acc", "min_loss", "max_step"]
         if to_save:
             self.savers = {key: tf.train.Saver(max_to_keep=self.config.max_to_keep) for key in self.modes}
@@ -49,13 +49,13 @@ class Saver(object):
         :return: model_checkpoint_path
         """
         assert mode in self.modes, "mode is not exist： {}".format(mode)
-        self.__save_config_file()
-        _ckpt_dir = os.path.join(self.checkpoint_dir, mode)
-        os.makedirs(_ckpt_dir, exist_ok=True)
-        ckpt_prefix = os.path.join(_ckpt_dir, self.ckpt_prefix_template.format(loss=loss, accuracy=accuracy))
+        ckpt_prefix = os.path.join(self.checkpoint_dir, mode,
+                                   self.ckpt_prefix_template.format(loss=loss, accuracy=accuracy))
+        os.makedirs(os.path.dirname(ckpt_prefix), exist_ok=True)
         saver = self.savers[mode]
         ckpt_save_path = saver.save(sess, ckpt_prefix, global_step=global_step)
         logging.info("* Model save to file: {}".format(ckpt_save_path))
+        self.__save_config_file()  # 保存模型的配置文件
         return ckpt_save_path
 
     def restore_model(self, sess, mode=CkptConfig.load_model_mode, fail_ok=False):
@@ -95,7 +95,7 @@ class Saver(object):
                 model_paths,  # loss,acc,global_step
                 key=lambda _path: float(self.meta_path_patten.search(_path).group(mode)),
                 reverse=is_reverse)
-            model_path = sorted_model_paths[-1].strip(".meta")
+            model_path = sorted_model_paths[-1].strip(".meta")  # 挑选出最好的模型
         else:
             model_path = ""  # 默认返回空路径
         return model_path

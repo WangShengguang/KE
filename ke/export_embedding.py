@@ -20,9 +20,10 @@ class EmbeddingExporter(object):
         graph = tf.Graph()
         sess = tf.Session(config=self.config.session_conf, graph=graph)
         with graph.as_default(), sess.as_default():  # self 无法load TransformerKB
-            model_path = Saver(self.model_name, relative_dir=self.data_set, allow_empty=True).restore_model(sess)
+            model_path = Saver(data_set=self.data_set, model_name=self.model_name).restore_model(sess)
             print("* load model path :{}".format(model_path))
             if self.model_name == "ConvKB":
+                # 无需拆分 ent_emb和rel_emb，后续SimRank推荐 ent2id rel2id从datahelper获得，在其中处理之即可
                 ent_embeddings = graph.get_operation_by_name("ConvKB-W").outputs[0]
                 rel_embeddings = ent_embeddings
             elif self.model_name == "TransformerKB":

@@ -22,6 +22,20 @@ Knowledge Embedding   ，知识编码
 *model:TransformerKB FB15K, mrr:0.1069, mr:203.9850, hit_10:0.2150, hit_3:0.1150, hit_1:0.0450 
 
 
+--- 
+*model:TransformerKB traffic_all, mrr:0.1529, mr:31.2530, hit_10:0.3958, hit_3:0.1429, hit_1:0.0506
+num_blok 3 , num_heads 4
+
+*model:TransformerKB traffic_all, mrr:0.1461, mr:33.9435, hit_10:0.3720, hit_3:0.1399, hit_1:0.0446
+2 4
+
+*model:TransformerKB traffic_all, mrr:0.1605, mr:33.9702, hit_10:0.3690, hit_3:0.1577, hit_1:0.0655
+2 2
+
+*model:TransformerKB traffic_all, mrr:0.1508, mr:34.4494, hit_10:0.3601, hit_3:0.1518, hit_1:0.0536
+2 8
+
+
 # tips
     data feed 
     多轮训练（断点续训）

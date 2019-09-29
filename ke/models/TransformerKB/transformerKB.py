@@ -85,7 +85,7 @@ class TransformerKB(Model):
         super().__init__(data_set, num_ent_tags, num_rel_tags)
         self.embedding_dim = self.ent_emb_dim
         self.vocab_size = num_ent_tags + num_rel_tags
-        self.transformer = Transformer(num_blocks=6, num_heads=8,
+        self.transformer = Transformer(num_blocks=3, num_heads=4,  # 128//num_heads; 6,8
                                        max_sequence_len=self.sequence_length,
                                        vocab_size=self.vocab_size, d_model=self.embedding_dim)
 

@@ -17,7 +17,7 @@ class Trainer(object):
         self.model_name = model_name
         self.data_set = data_set
         self.min_num_epoch = min_num_epoch
-        self.data_helper = DataHelper(data_set,model_name)
+        self.data_helper = DataHelper(data_set, model_name)
         # evaluate
         # self.evaluator = None
         self.min_loss = 100000
@@ -55,6 +55,7 @@ class Trainer(object):
             model = self.get_model()
             sess.run(tf.global_variables_initializer())
             if not Path(model.saver.get_model_path(mode=Config.load_model_mode) + ".meta").is_file():
+                print("* not found saved model:{}".format(self.model_name))
                 model.saver.save_model(sess, global_step=0, loss=100.0, mode="max_step")  # 0 step state save test file
             elif Config.load_pretrain:  # 断点续训
                 model_path = model.saver.restore_model(sess, fail_ok=True)

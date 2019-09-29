@@ -58,7 +58,7 @@ class Model(object):
         # self.predict = tf.add(a, b, name="predict")
 
     def input_def(self):
-        self.hrt_input_x = tf.stack([self.h, self.r, self.t], axis=1)  # 交换了位置 hrt->htr
+        self.hrt_input_x = tf.stack([self.h, self.r, self.t], axis=1)  # 交换了位置 htr->hrt
 
     def embedding_def(self, num_ent_tags, num_rel_tags, ent_emb_dim, rel_emb_dim):
         pass
