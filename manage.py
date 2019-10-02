@@ -27,14 +27,15 @@ def run_all(model_name, data_set, mode):
     logging_config(f"{model_name}_{data_set}_{mode}.log")
     all_models = models if model_name == "all" else [model_name]
     all_data_sets = data_sets if data_set == "all" else [data_set]
-    dataset2epoch_nums = {"WN18RR": 5, "lawdata": 100, "lawdata_new": 1000, "traffic": 10, "traffic_all": 10,
-                          "FB15K": 3}
+    dataset2epoch_nums = {"lawdata": 10, "lawdata_new": 100,
+                          "traffic": 10, "traffic_all": 10, "traffic_500": 10,
+                          "FB15K": 3, "WN18RR": 5}
     for data_set in all_data_sets:
         num_epoch = dataset2epoch_nums[data_set]
         for model_name in all_models:
             if mode == "train":
                 # if model_name == "TransformerKB":
-                #     num_epoch = num_epoch * 3
+                #     num_epoch = num_epoch * 10
                 from ke.trainer import Trainer
                 Trainer(model_name=model_name, data_set=data_set, min_num_epoch=num_epoch).run()
             test(model_name, data_set)  # 训练结束测试
@@ -58,7 +59,9 @@ models = ["Analogy", "ComplEx", "DistMult", "HolE", "RESCAL",
           "TransD", "TransE", "TransH", "TransR",
           "ConvKB", "TransformerKB"]
 
-data_sets = ["lawdata", "lawdata_new", "traffic", "traffic_all", "FB15K", "WN18RR"]
+data_sets = ["lawdata", "lawdata_new",
+             "traffic", "traffic_all", "traffic_500",
+             "FB15K", "WN18RR"]
 
 
 def main():

@@ -30,33 +30,28 @@ class Analogy(Model):
 
     def forward(self):
         # Embedding entities and relations of triples
-        self.h_embed_1 = tf.nn.embedding_lookup(self.ent_embeddings_1, self.h)
-        self.t_embed_1 = tf.nn.embedding_lookup(self.ent_embeddings_1, self.t)
-        self.r_embed_1 = tf.nn.embedding_lookup(self.rel_embeddings_1, self.r)
+        h_embed_1 = tf.nn.embedding_lookup(self.ent_embeddings_1, self.h)
+        t_embed_1 = tf.nn.embedding_lookup(self.ent_embeddings_1, self.t)
+        r_embed_1 = tf.nn.embedding_lookup(self.rel_embeddings_1, self.r)
 
-        self.h_embed_2 = tf.nn.embedding_lookup(self.ent_embeddings_2, self.h)
-        self.t_embed_2 = tf.nn.embedding_lookup(self.ent_embeddings_2, self.t)
-        self.r_embed_2 = tf.nn.embedding_lookup(self.rel_embeddings_2, self.r)
+        h_embed_2 = tf.nn.embedding_lookup(self.ent_embeddings_2, self.h)
+        t_embed_2 = tf.nn.embedding_lookup(self.ent_embeddings_2, self.t)
+        r_embed_2 = tf.nn.embedding_lookup(self.rel_embeddings_2, self.r)
 
-        self.h_embed = tf.nn.embedding_lookup(self.ent_embeddings, self.h)
-        self.t_embed = tf.nn.embedding_lookup(self.ent_embeddings, self.t)
-        self.r_embed = tf.nn.embedding_lookup(self.rel_embeddings, self.r)
-
+        h_embed = tf.nn.embedding_lookup(self.ent_embeddings, self.h)
+        t_embed = tf.nn.embedding_lookup(self.ent_embeddings, self.t)
+        r_embed = tf.nn.embedding_lookup(self.rel_embeddings, self.r)
+        # predict
+        res_comp = -tf.reduce_sum(self._calc_comp(h_embed_1, h_embed_2, t_embed_1, t_embed_2, r_embed_1, r_embed_2),
+                                  1, keep_dims=False)
+        res_dist = -tf.reduce_sum(self._calc_dist(h_embed, t_embed, r_embed), 1, keep_dims=False)
+        self.predict = tf.add(res_comp, res_dist, name="predict")
         # Calculating score functions for all positive triples and negative triples
         loss_func = tf.reduce_mean(tf.nn.softplus(tf.reshape(self.input_y, [-1]) * tf.reshape(self.predict, [-1])),
                                    0, keep_dims=False)
-        regul_func = tf.reduce_mean(self.h_embed_1 ** 2) + tf.reduce_mean(self.t_embed_1 ** 2) + tf.reduce_mean(
-            self.h_embed_2 ** 2) + tf.reduce_mean(
-            self.t_embed_2 ** 2) + tf.reduce_mean(self.r_embed_1 ** 2) + tf.reduce_mean(
-            self.r_embed_2 ** 2) + tf.reduce_mean(
-            self.h_embed ** 2) + tf.reduce_mean(
-            self.t_embed ** 2) + tf.reduce_mean(self.r_embed ** 2)
+        regul_func = (tf.reduce_mean(h_embed_1 ** 2) + tf.reduce_mean(t_embed_1 ** 2) +
+                      tf.reduce_mean(h_embed_2 ** 2) + tf.reduce_mean(t_embed_2 ** 2) +
+                      tf.reduce_mean(r_embed_1 ** 2) + tf.reduce_mean(r_embed_2 ** 2) +
+                      tf.reduce_mean(h_embed ** 2) + tf.reduce_mean(t_embed ** 2) + tf.reduce_mean(r_embed ** 2))
         # Calculating loss to get what the framework will optimize
         self.loss = loss_func + self.config.l2_reg_lambda * regul_func
-
-    def predict_def(self):
-        res_comp = -tf.reduce_sum(
-            self._calc_comp(self.h_embed_1, self.h_embed_2, self.t_embed_1, self.t_embed_2, self.r_embed_1,
-                            self.r_embed_2), 1, keep_dims=False)
-        res_dist = -tf.reduce_sum(self._calc_dist(self.h_embed, self.t_embed, self.r_embed), 1, keep_dims=False)
-        self.predict = tf.add(res_comp, res_dist, name="predict")

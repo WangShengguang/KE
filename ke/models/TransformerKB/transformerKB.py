@@ -76,6 +76,7 @@ class Transformer(object):
                                               causality=False)
                     # feed forward
                     enc = ff(enc, num_units=[self.d_ff, self.d_model])
+                    # enc = tf.nn.relu(enc)  # 有提升
         memory = enc
         return memory
 
@@ -85,11 +86,12 @@ class TransformerKB(Model):
         super().__init__(data_set, num_ent_tags, num_rel_tags)
         self.embedding_dim = self.ent_emb_dim
         self.vocab_size = num_ent_tags + num_rel_tags
-        self.transformer = Transformer(num_blocks=3, num_heads=4,  # 128//num_heads; 6,8
+        self.transformer = Transformer(num_blocks=3, num_heads=4,  # 128//num_heads; 6,8 $ best 12>14>24>34>18>68
                                        max_sequence_len=self.sequence_length,
-                                       vocab_size=self.vocab_size, d_model=self.embedding_dim)
+                                       vocab_size=self.vocab_size, d_model=self.embedding_dim,
+                                       dropout_rate=1 - self.dropout_keep_prob )
 
-    def embedding_def(self, num_ent_tags, num_rel_tags, ent_emb_dim, rel_emb_dim):
+    def embedding_def(self, num_ent_tags, num_rel_tags, entm_emb_dim, rel_emb_dim):
         self.total_dims = self.sequence_length * self.embedding_dim
         self.W = tf.get_variable(name="output_W", shape=[self.total_dims, self.num_classes],
                                  initializer=tf.contrib.layers.xavier_initializer(seed=1234))
@@ -99,10 +101,13 @@ class TransformerKB(Model):
         l2_loss = tf.constant(0.0)
         self.encoded = self.transformer.encode(self.hrt_input_x)  # (batch_size, 3, 128)
         self.encoded_flatten = tf.reshape(self.encoded, [-1, self.total_dims])
+        #
+        self.encoded_flatten = tf.nn.relu(self.encoded_flatten)
         self.h_drop = tf.nn.dropout(self.encoded_flatten, self.dropout_keep_prob)
         l2_loss += tf.nn.l2_loss(self.W)
         l2_loss += tf.nn.l2_loss(self.b)
         self.scores = tf.nn.xw_plus_b(self.h_drop, self.W, self.b, name="scores")
+        #
         # Calculate loss
         losses = tf.nn.softplus(self.scores * self.input_y)
         self.loss = tf.reduce_mean(losses) + self.config.l2_reg_lambda * l2_loss

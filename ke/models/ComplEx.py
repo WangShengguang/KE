@@ -22,7 +22,6 @@ class ComplEx(TransX):
                              -1, keep_dims=False, name=name)
 
     def forward(self):
-
         pos_h_embed_2 = tf.nn.embedding_lookup(self.ent_embeddings_2, self.pos_h)
         pos_t_embed_2 = tf.nn.embedding_lookup(self.ent_embeddings_2, self.pos_t)
         pos_r_embed_2 = tf.nn.embedding_lookup(self.rel_embeddings_2, self.pos_r)
@@ -31,17 +30,16 @@ class ComplEx(TransX):
         neg_t_embed_2 = tf.nn.embedding_lookup(self.ent_embeddings_2, self.neg_t)
         neg_r_embed_2 = tf.nn.embedding_lookup(self.rel_embeddings_2, self.neg_r)
 
-        _p_score = self._calc(self.pos_h_embed, pos_h_embed_2, self.pos_t_embed, pos_t_embed_2, self.pos_r_embed,
-                              pos_r_embed_2)
-        _n_score = self._calc(self.neg_h_embed, neg_h_embed_2, self.neg_t_embed, neg_t_embed_2, self.neg_r_embed,
-                              neg_r_embed_2)
+        _p_score = self._calc(self.pos_h_embed, pos_h_embed_2, self.pos_t_embed, pos_t_embed_2,
+                              self.pos_r_embed, pos_r_embed_2)
+        _n_score = self._calc(self.neg_h_embed, neg_h_embed_2, self.neg_t_embed, neg_t_embed_2,
+                              self.neg_r_embed, neg_r_embed_2)
 
         loss_func = tf.reduce_mean(tf.nn.softplus(- self.pos_y * _p_score) + tf.nn.softplus(- self.neg_y * _n_score))
-        regul_func = tf.reduce_mean(
-            self.pos_h_embed ** 2 + self.pos_t_embed ** 2 + self.pos_r_embed ** 2 +
-            self.neg_h_embed ** 2 + self.neg_t_embed ** 2 + self.neg_r_embed ** 2 +
-            pos_h_embed_2 ** 2 + pos_t_embed_2 ** 2 + pos_r_embed_2 ** 2 +
-            neg_h_embed_2 ** 2 + neg_t_embed_2 ** 2 + neg_r_embed_2 ** 2)
+        regul_func = tf.reduce_mean(self.pos_h_embed ** 2 + self.pos_t_embed ** 2 + self.pos_r_embed ** 2 +
+                                    self.neg_h_embed ** 2 + self.neg_t_embed ** 2 + self.neg_r_embed ** 2 +
+                                    pos_h_embed_2 ** 2 + pos_t_embed_2 ** 2 + pos_r_embed_2 ** 2 +
+                                    neg_h_embed_2 ** 2 + neg_t_embed_2 ** 2 + neg_r_embed_2 ** 2)
         self.loss = loss_func + self.config.l2_reg_lambda * regul_func
 
     def predict_def(self):

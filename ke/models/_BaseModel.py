@@ -35,17 +35,17 @@ class Model(object):
         self.sequence_length = sequence_length
         self.batch_size = batch_size
         self.num_classes = num_classes
-
-    def _build(self):
-        """子类 __init__完成之后再调用此方法,通过元类实现
-            input_x: [[10630,1715,4],[1422,18765,4]] h,t,r
-        """
+        #
         self.input_x = tf.placeholder(tf.int32, [self.batch_size, self.sequence_length], name="input_x")
         self.input_y = tf.placeholder(tf.float32, [self.batch_size, self.num_classes], name="input_y")  # [[1],[1],[-1]]
         self.h, self.t, self.r = tf.unstack(self.input_x, axis=1)
         self.dropout_keep_prob = tf.placeholder(tf.float32, name="dropout_keep_prob")
         self.global_step = tf.Variable(0, trainable=False, name='global_step')
-        #
+
+    def _build(self):
+        """子类 __init__完成之后再调用此方法,通过元类实现
+            input_x: [[10630,1715,4],[1422,18765,4]] h,t,r
+        """
         self.input_def()  # placeholder
         self.embedding_def(self.num_ent_tags, self.num_rel_tags, self.ent_emb_dim, self.rel_emb_dim)  # weights
         self.forward()  # forward propagate

@@ -31,5 +31,5 @@ class HolE(TransX):
         self.loss = tf.reduce_sum(tf.maximum(p_score - n_score + self.config.margin, 0))
 
     def predict_def(self):
-        self.predict = tf.reduce_sum(self._calc(self.h_embed, self.t_embed, self.r_embed), 1, keep_dims=True,
-                                     name="predict")
+        self.predict = tf.reduce_sum(self._calc(self.h_embed, self.t_embed, self.r_embed),
+                                     1, keep_dims=True, name="predict")

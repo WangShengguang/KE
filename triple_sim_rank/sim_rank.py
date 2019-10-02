@@ -114,7 +114,8 @@ class TripleSimRank(object):
 
 
 def create_all_sim_rank(data_set, model_names):
-    choice_list = [0, 1, 3, 4, 7, 8, 12, 13, 18, 19]
+    choice_list = [0, 1, 3, 4, 7, 8, 12, 13, 18, 19]  # 选取相似度列表的 第n项 作为结果
+    choice_list = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
     data_results = []
     for model_name in model_names:
         triple_sim_ranker = TripleSimRank(data_set=data_set, model_name=model_name)

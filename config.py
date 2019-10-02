@@ -23,7 +23,7 @@ class TrainConfig(object):
     sequence_len = 3  # (h,r,t)
     num_classes = 1  # 0 or 1
     # neg_label = -1.0  # 负样本标签
-    batch_size = 8
+    batch_size = 16
     epoch_nums = 1000
     # margin loss
     learning_rate = 0.0001
