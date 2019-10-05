@@ -1,3 +1,5 @@
+import abc
+
 import tensorflow as tf
 from tensorflow import Tensor
 
@@ -7,7 +9,7 @@ from ke.utils.saver import Saver
 __all__ = ["Model"]
 
 
-class Model(object):
+class Model(metaclass=abc.ABCMeta):
     """  网络构建必须在 __network_build函数调用的几个函数中实现
         实现 model.save 和 model.load
         https://zhuanlan.zhihu.com/p/68899384
@@ -63,6 +65,7 @@ class Model(object):
     def embedding_def(self, num_ent_tags, num_rel_tags, ent_emb_dim, rel_emb_dim):
         pass
 
+    @abc.abstractmethod
     def forward(self):
         self.loss = None
         self.predict = None
@@ -125,40 +128,3 @@ class TransX(Model):
         self.h_embed = tf.nn.embedding_lookup(self.ent_embeddings, self.h)
         self.t_embed = tf.nn.embedding_lookup(self.ent_embeddings, self.t)
         self.r_embed = tf.nn.embedding_lookup(self.rel_embeddings, self.r)
-
-    def embedding_def(self, num_ent_tags, num_rel_tags, ent_emb_dim, rel_emb_dim):
-        pass
-
-    def forward(self):
-        self.loss = None
-        self.predict = None
-        raise NotImplementedError
-
-    def backward(self):
-        optimizer = tf.train.AdamOptimizer(learning_rate=Config.learning_rate)
-        grads_and_vars = optimizer.compute_gradients(self.loss)
-        self.train_op = optimizer.apply_gradients(grads_and_vars, global_step=self.global_step)
-        return self.train_op
-
-
-class NetworkMeta(type):
-
-    def __new__(mcs, class_name, class_parents, class_attr):
-        if class_name not in __all__:  # subclass
-            _parent_init = class_parents[0].__init__
-            if "__init__" in class_attr:
-                _cur_init = class_attr["__init__"]  # subclass __init__
-
-                def _init(self, *args, **kwargs):
-                    # _parent_init(self, *args, **kwargs) #子类init中一般已经完成对父类init的调用
-                    _cur_init(self, *args, **kwargs)
-                    getattr(self, "_Model__build_network")()  # 子类初始化完成后调用_network_build
-            else:
-
-                def _init(self, *args, **kwargs):
-                    _parent_init(self, *args, **kwargs)
-                    getattr(self, "_Model__build_network")()  # 子类初始化完成后调用_network_build
-
-            class_attr["__init__"] = _init
-
-        return type.__new__(mcs, class_name, class_parents, class_attr)

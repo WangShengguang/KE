@@ -14,7 +14,6 @@ class EmbeddingExporter(object):
         self.model_name = model_name
         self.config = EmbeddingExportConfig(data_set=data_set)
         self.embedding_json_path = os.path.join(self.config.embedding_dir, f"{model_name}.json")
-        os.makedirs(os.path.dirname(self.embedding_json_path), exist_ok=True)
 
     def export_embedding(self):
         graph = tf.Graph()
@@ -41,8 +40,8 @@ class EmbeddingExporter(object):
             self.embedding_json_path, ent_embeddings.shape, rel_embeddings.shape))
         return self.embedding_json_path
 
-    def load_embedding(self):
-        if not os.path.isfile(self.embedding_json_path):
+    def load_embedding(self, reuse=False):
+        if not reuse or not os.path.isfile(self.embedding_json_path):
             self.export_embedding()
         with open(self.embedding_json_path, 'r', encoding='utf-8') as f:
             embedding = json.load(f)

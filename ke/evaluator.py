@@ -25,11 +25,17 @@ class Predictor(object):
         graph = tf.Graph()
         self.sess = tf.Session(config=Config.session_conf, graph=graph)
         with graph.as_default(), self.sess.as_default():  # self 无法load TransformerKB
-            model_path = Saver(self.data_set, self.model_name, to_save=False).restore_model(self.sess)
+            model_path = Saver(self.data_set, self.model_name).restore_model(self.sess)
             print("load model from : {}".format(model_path))
             self.input_x = graph.get_operation_by_name("input_x").outputs[0]
             self.prediction = graph.get_operation_by_name("predict").outputs[0]
             self.dropout_keep_prob = graph.get_operation_by_name("dropout_keep_prob").outputs[0]
+
+    def set_model(self, sess, model):
+        self.sess = sess
+        self.input_x = model.input_x
+        self.prediction = model.predict
+        self.dropout_keep_prob = model.dropout_keep_prob
 
     def predict(self, batch_h: List, batch_t: List, batch_r: List):
         """ 用于预测
@@ -229,17 +235,20 @@ class Evaluator(Predictor):
         }
         return metrics
 
-    def test_link_prediction(self):
+    def test_link_prediction(self, _tqdm=True, model=None, sess=None):
         """
         链接预测，预测头实体或尾实体
         """
+        if model and sess:
+            self.set_model(sess=sess, model=model)
         metrics_li = []
         total = len(self.data_helper.data[self.data_type])
         logging.info("* model:{},{} test_link_prediction start, {}: {} ".format(self.model_name,
                                                                                 self.data_set, self.data_type, total))
-        for step, (h, t, r) in enumerate(tqdm(self.data_helper.data[self.data_type],
-                                              desc="{} {} test_link_prediction".format(self.model_name,
-                                                                                       self.data_set))):
+        iter_data = self.data_helper.data[self.data_type]
+        if _tqdm:
+            iter_data = tqdm(iter_data, desc=f"{self.model_name} {self.data_set} test_link_prediction")
+        for step, (h, t, r) in enumerate(iter_data):
             pred_head_ids = self.predict_head_entity(t, r)
             _metrics = get_rank_hit_metrics(y_id=h, pred_ids=pred_head_ids)
             metrics_li.append(_metrics)

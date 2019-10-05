@@ -29,7 +29,7 @@ class Transformer(object):
     '''
 
     def __init__(self, num_blocks, num_heads, max_sequence_len, vocab_size,
-                 d_model=512, d_ff=2048, dropout_rate=0.0):
+                 d_model=128, d_ff=2048, dropout_rate=0.0):
         """
         :param num_blocks:
         :param num_heads:
@@ -61,6 +61,7 @@ class Transformer(object):
             enc *= self.d_model  # scale
 
             enc += positional_encoding(enc, self.max_sequence_len)
+
             enc = tf.layers.dropout(enc, self.dropout_rate, training=training)
 
             ## Blocks
@@ -76,7 +77,6 @@ class Transformer(object):
                                               causality=False)
                     # feed forward
                     enc = ff(enc, num_units=[self.d_ff, self.d_model])
-                    # enc = tf.nn.relu(enc)  # 有提升
         memory = enc
         return memory
 
@@ -89,7 +89,7 @@ class TransformerKB(Model):
         self.transformer = Transformer(num_blocks=3, num_heads=4,  # 128//num_heads; 6,8 $ best 12>14>24>34>18>68
                                        max_sequence_len=self.sequence_length,
                                        vocab_size=self.vocab_size, d_model=self.embedding_dim,
-                                       dropout_rate=1 - self.dropout_keep_prob )
+                                       dropout_rate=1 - self.dropout_keep_prob)
 
     def embedding_def(self, num_ent_tags, num_rel_tags, entm_emb_dim, rel_emb_dim):
         self.total_dims = self.sequence_length * self.embedding_dim
@@ -102,7 +102,7 @@ class TransformerKB(Model):
         self.encoded = self.transformer.encode(self.hrt_input_x)  # (batch_size, 3, 128)
         self.encoded_flatten = tf.reshape(self.encoded, [-1, self.total_dims])
         #
-        self.encoded_flatten = tf.nn.relu(self.encoded_flatten)
+        # self.encoded_flatten = tf.nn.relu(self.encoded_flatten)
         self.h_drop = tf.nn.dropout(self.encoded_flatten, self.dropout_keep_prob)
         l2_loss += tf.nn.l2_loss(self.W)
         l2_loss += tf.nn.l2_loss(self.b)

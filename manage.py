@@ -1,5 +1,6 @@
 import logging
 import os
+from collections import defaultdict
 
 from ke.utils.gpu_selector import get_available_gpu
 from ke.utils.hparams import Hparams
@@ -12,7 +13,7 @@ def test(model_name, data_set):
     from ke.evaluator import Evaluator
     evaluator = Evaluator(model_name, data_set, data_type="test")
     mr, mrr, hit_10, hit_3, hit_1 = evaluator.test_link_prediction()
-    rank_metrics = "\n*model:{} {}, mrr:{:.4f}, mr:{:.4f}, hit_10:{:.4f}, hit_3:{:.4f}, hit_1:{:.4f}\n".format(
+    rank_metrics = "\n*model:{}, {}, mrr:{:.4f}, mr:{:.4f}, hit_10:{:.4f}, hit_3:{:.4f}, hit_1:{:.4f}\n".format(
         model_name, data_set, mrr, mr, hit_10, hit_3, hit_1)
     print(rank_metrics)
     logging.info(rank_metrics)
@@ -21,15 +22,17 @@ def test(model_name, data_set):
     #     model_name, accuracy, precision, recall, f1)
     # print(_metrics)
     # logging.info(_metrics)
+    return mr, mrr, hit_10, hit_3, hit_1
 
 
 def run_all(model_name, data_set, mode):
     logging_config(f"{model_name}_{data_set}_{mode}.log")
     all_models = models if model_name == "all" else [model_name]
     all_data_sets = data_sets if data_set == "all" else [data_set]
-    dataset2epoch_nums = {"lawdata": 10, "lawdata_new": 100,
-                          "traffic": 10, "traffic_all": 10, "traffic_500": 10,
+    dataset2epoch_nums = {"lawdata": 1000, "lawdata_new": 100,
+                          "traffic": 10, "traffic_all": 10, "traffic_500": 500,
                           "FB15K": 3, "WN18RR": 5}
+    all_rank_metrics = defaultdict(list)
     for data_set in all_data_sets:
         num_epoch = dataset2epoch_nums[data_set]
         for model_name in all_models:
@@ -38,7 +41,22 @@ def run_all(model_name, data_set, mode):
                 #     num_epoch = num_epoch * 10
                 from ke.trainer import Trainer
                 Trainer(model_name=model_name, data_set=data_set, min_num_epoch=num_epoch).run()
-            test(model_name, data_set)  # 训练结束测试
+            rank_metrics = test(model_name, data_set)  # 训练结束测试
+            all_rank_metrics[data_set].append([model_name] + list(rank_metrics))
+    for dataset, _rank_metrics in all_rank_metrics.items():
+        print()
+        title = "\t|\t".join(["\tModel", "MR", "MRR", "hit@10", "hit@3", "hit@1"])
+        title = "|" + title + "|"
+        lines = []
+        for _rank in _rank_metrics:
+            _model_name = _rank[0] + '\t' if len(_rank[0]) < 7 else _rank[0]
+            _metrics = [f"{v:.4f}" for v in _rank[1:]]
+            line = "\t|\t".join([_model_name] + _metrics)
+            line = "|" + line + "|"
+            lines.append(line)
+        print("\n----{}------\n".format(data_set))
+        print("\n".join([title] + lines))
+        print()
 
 
 def export_embedding(data_set):

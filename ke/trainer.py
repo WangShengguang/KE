@@ -7,6 +7,7 @@ from tqdm import trange
 
 from config import Config
 from ke.data_helper import DataHelper
+from ke.evaluator import Evaluator
 from ke.models import (Analogy, ComplEx, DistMult, HolE, RESCAL,
                        TransD, TransE, TransH, TransR,
                        ConvKB, TransformerKB)
@@ -21,8 +22,7 @@ class Trainer(object):
         # evaluate
         # self.evaluator = None
         self.min_loss = 100000
-        self.best_mr = 0.0
-        self.best_val_f1 = 0
+        self.best_val_mrr = 0
         self.patience_counter = 0
 
     def get_model(self):
@@ -35,16 +35,26 @@ class Trainer(object):
         model._build()
         return model
 
-    def test(self, sess, model, global_step, loss):
+    def check_loss_save(self, sess, model, global_step, loss):
         if loss <= self.min_loss:
             model.saver.save_model(sess, global_step=global_step, loss=loss, mode="min_loss")
-            if loss - self.min_loss < Config.patience:
-                self.patience_counter += 1
-            else:
-                self.patience_counter = 0
             self.min_loss = loss
         else:
             self.patience_counter += 1
+
+    def check_save_mrr(self, sess, model, global_step):
+        mr, mrr, hit_10, hit_3, hit_1 = self.evaluator.test_link_prediction(_tqdm=False, sess=sess, model=model)
+        rank_metrics = "\n*model:{} {} valid, mrr:{:.4f}, mr:{:.4f}, hit_10:{:.4f}, hit_3:{:.4f}, hit_1:{:.4f}\n".format(
+            self.model_name, self.data_set, mrr, mr, hit_10, hit_3, hit_1)
+        if mrr >= self.best_val_mrr:
+            ckpt_path = model.saver.save_model(sess, global_step=global_step, accuracy=mrr, mode="max_acc")
+            logging.info(rank_metrics)
+            print(rank_metrics)
+            print("get best mrr: {:.4f}, save to : {}".format(mrr, ckpt_path))
+            self.best_val_mrr = mrr
+        else:
+            self.patience_counter += 1
+            print("* {}, {}, patience_counter: {}".format(self.data_set, self.model_name, self.patience_counter))
 
     def run(self):
         logging.info("{} {} start train ...".format(self.model_name, self.data_set))
@@ -54,15 +64,23 @@ class Trainer(object):
             # get model
             model = self.get_model()
             sess.run(tf.global_variables_initializer())
-            if not Path(model.saver.get_model_path(mode=Config.load_model_mode) + ".meta").is_file():
+            if not Path(model.saver.get_model_path(mode=Config.load_model_mode, verbose=False)).is_file():
                 print("* not found saved model:{}".format(self.model_name))
-                model.saver.save_model(sess, global_step=0, loss=100.0, mode="max_step")  # 0 step state save test file
+                ckpt_save_path = model.saver.save_model(sess, global_step=0, accuracy=0.0, loss=100.0,
+                                                        mode=Config.load_model_mode)
+                print("save init state to : {}".format(ckpt_save_path))  # 0 step state save test file
             elif Config.load_pretrain:  # 断点续训
                 model_path = model.saver.restore_model(sess, fail_ok=True)
                 if model_path:
                     print("* Model load from file: {}".format(model_path))
+            self.evaluator = Evaluator(model_name=self.model_name, data_set=self.data_set, data_type="valid")
+            per_epoch_step = len(self.data_helper.data["train"]) // Config.batch_size // 2  # 正负样本
+            global_step = sess.run(model.global_step)
+            start_epoch_num = global_step // per_epoch_step
             for epoch_num in trange(1, max(self.min_num_epoch, Config.max_epoch_nums) + 1,
                                     desc="{} {} train epoch ".format(self.model_name, self.data_set)):
+                if epoch_num <= start_epoch_num:
+                    continue
                 losses = []
                 for x_batch, y_batch in self.data_helper.batch_iter(data_type="train",
                                                                     batch_size=Config.batch_size, _shuffle=True):
@@ -72,16 +90,17 @@ class Trainer(object):
                                                                model.dropout_keep_prob: Config.dropout_keep_prob})
                     if global_step % Config.save_step == 0:
                         logging.info(" step:{}, loss: {:.4f}".format(global_step, loss))
-                        self.test(sess, model, global_step, loss)
                     # predict = sess.run(model.predict, feed_dict={model.input_x: x_batch, model.input_y: y_batch})
                     losses.append(loss)
-                self.test(sess, model, global_step, loss)
+                self.check_loss_save(sess, model, global_step, loss)
+                if epoch_num > self.min_num_epoch:
+                    self.check_save_mrr(sess, model, global_step)
                 model.saver.save_model(sess, global_step=global_step, loss=np.mean(losses), mode="max_step")
                 logging.info("epoch {}, loss:{:.4f} ...\n".format(epoch_num, np.mean(losses)))
                 # Early stopping and logging best f1
                 if self.patience_counter >= Config.patience_num and epoch_num > self.min_num_epoch:
                     logging.info("{} {}, Best val f1: {:.4f} best loss:{:.4f}".format(
-                        self.model_name, self.data_set, self.best_val_f1, self.min_loss))
+                        self.model_name, self.data_set, self.best_val_mrr, self.min_loss))
                     break
 
 # def test(self, sess, model, global_step, loss, test_link_predict=False, test_triple_classification=False):

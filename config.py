@@ -24,7 +24,7 @@ class TrainConfig(object):
     num_classes = 1  # 0 or 1
     # neg_label = -1.0  # 负样本标签
     batch_size = 16
-    epoch_nums = 1000
+    # epoch_nums = 1000
     # margin loss
     learning_rate = 0.0001
     l2_reg_lambda = 0.001
@@ -38,7 +38,7 @@ class TrainConfig(object):
     max_epoch_nums = 100
     min_epoch_nums = 5
     # lawdata 10000
-    patience = 0.0001
+    # patience = 0.0001
     patience_num = 5
     # model save & load
     load_pretrain = True  # 断点续训
@@ -47,8 +47,8 @@ class TrainConfig(object):
 
 
 class Evaluate(TrainConfig):
-    load_model_mode = "max_step"
     # load_model_mode = "min_loss"
+    load_model_mode = "max_step"
     # load_model_mode = "max_acc"  # mrr
 
 
@@ -78,11 +78,12 @@ class Config(Evaluate, TfConfig):
 
 class EmbeddingExportConfig(TfConfig):
     def __init__(self, data_set):
-        self.embedding_dir = os.path.join(output_dir, data_set)
+        self.embedding_dir = os.path.join(output_dir, data_set, "embeddings")
+        os.makedirs(self.embedding_dir, exist_ok=True)
 
 
 class SimRankConfig(object):
-    def __init__(self, data_set, model_name):
+    def __init__(self, data_set, model_name=""):
         self.case_list_txt = os.path.join(data_dir, data_set, "case_list.txt")  # 所有案由号
         self.cases_triples_json = os.path.join(data_dir, data_set, "cases_triples_result.json")  # 案由对应triple
         self.rank_result_csv = os.path.join(output_dir, data_set, "sim_rank", f"{model_name}_sim_rank_result.csv")

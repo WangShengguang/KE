@@ -16,20 +16,25 @@ class Saver(object):
     所有模型使用同一种命名格式保存 model-0.01-0.9.ckpt.meta ...
     """
 
-    def __init__(self, data_set, model_name, to_save=True):
+    def __init__(self, data_set, model_name):
         """
         :param model_name:  模型名
         :param data_set:  所用数据集
         """
         self.config = CkptConfig(data_set, model_name)
         self.checkpoint_dir = self.config.tf_ckpt_dir
-        self.ckpt_prefix_template = "model-{loss:.3f}-{accuracy:.3f}.ckpt"
+        self.ckpt_prefix_template = "model-{loss:.4f}-{accuracy:.4f}.ckpt"
         self.meta_path_patten = re.compile(
             r"model-(?P<min_loss>\d+\.\d+)-(?P<max_acc>[01]\.\d+)\.ckpt-(?P<max_step>\d+).meta")
-        self.modes = ["max_acc", "min_loss", "max_step"]
-        if to_save:
-            self.savers = {key: tf.train.Saver(max_to_keep=self.config.max_to_keep) for key in self.modes}
+        self.modes = {"max_acc": 0.0, "min_loss": 100.0, "max_step": 0}  # 自省
+        self.savers = {key: tf.train.Saver(max_to_keep=self.config.max_to_keep, allow_empty=True) for key in self.modes}
         self.config_saved = False
+        for mode in self.modes:
+            model_path = self.get_model_path(mode, verbose=False)
+            if model_path:
+                mode_value = float(self.meta_path_patten.search(model_path).group(mode))
+                self.modes[mode] = mode_value
+        self.modes["max_step"] = int(self.modes["max_step"])
 
     def __save_config_file(self):
         # save config.py 将配置参数保存下来
@@ -68,17 +73,17 @@ class Saver(object):
         """
         assert mode in self.modes, "mode is not exist： {}".format(mode)
         model_path = self.get_model_path(mode=mode)
-        if not Path(model_path + ".meta").is_file():
+        if not Path(model_path).is_file():
             print("fail load model from checkpoint_dir : {}... ".format(self.checkpoint_dir))
             if not fail_ok:
                 raise ValueError("model_path is not exist, checkpoint_dir: {}".format(self.checkpoint_dir))
         else:
-            _saver = tf.train.import_meta_graph(model_path + ".meta")
-            _saver.restore(sess, model_path)
+            _saver = tf.train.import_meta_graph(model_path)
+            _saver.restore(sess, model_path.rstrip(".meta"))
             logging.info("* Model restore from file: {}".format(model_path))
         return model_path
 
-    def get_model_path(self, mode="max_step"):
+    def get_model_path(self, mode="max_step", verbose=True):
         """
         :param mode: min_loss, max_acc, max_step
         :return: model_path  model_name.meta
@@ -88,14 +93,16 @@ class Saver(object):
         ckpt_dir = os.path.join(self.checkpoint_dir, mode)
         model_paths = Path(ckpt_dir).glob("*.meta")
         model_paths = [str(path) for path in model_paths if self.check_valid(path)]
-        print("* find {} models from {}".format(len(model_paths), ckpt_dir))
+        if verbose:
+            print("* find {} models from {}".format(len(model_paths), ckpt_dir))
         if model_paths:
             is_reverse = True if mode == "min_loss" else False  # 从差到好(loss ↓, acc ↑, step ↑)
             sorted_model_paths = sorted(
                 model_paths,  # loss,acc,global_step
                 key=lambda _path: float(self.meta_path_patten.search(_path).group(mode)),
                 reverse=is_reverse)
-            model_path = sorted_model_paths[-1].strip(".meta")  # 挑选出最好的模型
+            model_path = sorted_model_paths[-1]  # 挑选出最好的模型
+            # mode_value = float(self.meta_path_patten.search(model_path).group(mode))
         else:
             model_path = ""  # 默认返回空路径
         return model_path
