@@ -13,7 +13,7 @@ class TransH(TransX):
         n = tf.nn.l2_normalize(n, -1)
         return e - tf.reduce_sum(e * n, -1, keepdims=True) * n
 
-    def _calc(self, h, t, r, flag=True):
+    def _calc(self, h, t, r):
         h = tf.nn.l2_normalize(h, -1)
         t = tf.nn.l2_normalize(t, -1)
         r = tf.nn.l2_normalize(r, -1)

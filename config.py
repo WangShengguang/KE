@@ -96,6 +96,6 @@ class CkptConfig(Config):
 
     def __init__(self, data_set, model_name):
         self.tf_ckpt_dir = os.path.join(output_dir, data_set, "tf_ckpt", model_name)
-        self.keras_ckpt_dir = os.path.join(output_dir, data_set, "keras_ckpt", model_name)
+        # self.keras_ckpt_dir = os.path.join(output_dir, data_set, "keras_ckpt", model_name)
         os.makedirs(self.tf_ckpt_dir, exist_ok=True)
-        os.makedirs(self.keras_ckpt_dir, exist_ok=True)
+        # os.makedirs(self.keras_ckpt_dir, exist_ok=True)

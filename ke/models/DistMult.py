@@ -9,8 +9,8 @@ class DistMult(TransX):
     DistMult enjoys the same scalable property as TransE and it achieves superior performance over TransE.
     '''
 
-    def _calc(self, h, t, r, name=None):
-        return tf.reduce_sum(h * r * t, -1, keep_dims=False, name=name)
+    def _calc(self, h, t, r):
+        return tf.reduce_sum(h * r * t, -1, keep_dims=False)
 
     def forward(self):
         _p_score = self._calc(self.pos_h_embed, self.pos_t_embed, self.pos_r_embed)

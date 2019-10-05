@@ -3,6 +3,12 @@ Knowledge Embedding，知识表示
 
 主要参考OpenKE，将其中C++部分用Python重新实现，过度抽象封装的部分进行重新封装 
 
+
+## 模型简介
+
+- [知乎：Trans系列知识表示学习方法梳理](https://zhuanlan.zhihu.com/p/32993044)
+- [THUNLP: Must-read papers on knowledge representation learning (KRL) / knowledge embedding (KE)](https://github.com/thunlp/KRLPapers)
+
 ---
 
 ## 1. 数据准备 

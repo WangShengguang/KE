@@ -12,14 +12,14 @@ from ke.utils.saver import Saver
 
 
 class Predictor(object):
-    def __init__(self, model_name, data_set, sess=None):
+    def __init__(self, model_name, data_set, load_model=True):
         self.model_name = model_name
         self.data_set = data_set
-        # self.rank_metrics = RankMetrics()
         self.data_helper = DataHelper(data_set=data_set, model_name=model_name)
         self.entity_nums = len(self.data_helper.entity2id)
         self.relation_nums = len(self.data_helper.relation2id)
-        self.load_model()
+        if load_model:  # 方便训练过程中测试
+            self.load_model()
 
     def load_model(self):
         graph = tf.Graph()
@@ -122,14 +122,13 @@ class Predictor(object):
 
 
 class Evaluator(Predictor):
-    def __init__(self, model_name, data_set, data_type="test", sess=None):
-        super().__init__(model_name, data_set, sess)
-        self.data_type = data_type
+    def __init__(self, model_name, data_set, load_model=True):
+        super().__init__(model_name, data_set, load_model)
 
     def get_valid_lr(self):
-        valid_count = len(self.data_helper.data[self.data_type])
+        valid_count = len(self.data_helper.data["valid"])
         valid_left, valid_right = {}, {}
-        valid_samples = self.data_helper.data[self.data_type]  # [(h,t,r)]
+        valid_samples = self.data_helper.data["valid"]  # [(h,t,r)]
         for i in range(valid_count):
             if (valid_samples[i][-1] != valid_samples[i - 1][-1]):
                 valid_right[valid_samples[i - 1][-1]] = i - 1
@@ -176,16 +175,16 @@ class Evaluator(Predictor):
             rel_threshold[r] = bestThresh
         return rel_threshold
 
-    def test(self):
+    def test(self, data_type):
         ranks = []
         ranks_left = []
         ranks_right = []
         hits = {1: [], 3: [], 10: []}
         hits_left = {1: [], 3: [], 10: []}
         hits_right = {1: [], 3: [], 10: []}
-        total = len(self.data_helper.data[self.data_type])
-        logging.info("*model:{} {}, test start, {}: {} ".format(self.model_name, self.data_set, self.data_type, total))
-        for step, (h, t, r) in enumerate(tqdm(self.data_helper.data[self.data_type],
+        total = len(self.data_helper.data[data_type])
+        logging.info("*model:{} {}, test start, {}: {} ".format(self.model_name, self.data_set, data_type, total))
+        for step, (h, t, r) in enumerate(tqdm(self.data_helper.data[data_type],
                                               desc="{} Evaluator test".format(self.model_name))):
             pred_head_ids = self.predict_head_entity(t, r)
             rank_left = pred_head_ids.index(h) + 1
@@ -235,17 +234,15 @@ class Evaluator(Predictor):
         }
         return metrics
 
-    def test_link_prediction(self, _tqdm=True, model=None, sess=None):
+    def test_link_prediction(self, data_type, _tqdm=True):
         """
         链接预测，预测头实体或尾实体
         """
-        if model and sess:
-            self.set_model(sess=sess, model=model)
         metrics_li = []
-        total = len(self.data_helper.data[self.data_type])
-        logging.info("* model:{},{} test_link_prediction start, {}: {} ".format(self.model_name,
-                                                                                self.data_set, self.data_type, total))
-        iter_data = self.data_helper.data[self.data_type]
+        total = len(self.data_helper.data[data_type])
+        logging.info("* model:{},{} test_link_prediction start, {}: {} ".format(
+            self.model_name, self.data_set, data_type, total))
+        iter_data = self.data_helper.data[data_type]
         if _tqdm:
             iter_data = tqdm(iter_data, desc=f"{self.model_name} {self.data_set} test_link_prediction")
         for step, (h, t, r) in enumerate(iter_data):
@@ -266,7 +263,7 @@ class Evaluator(Predictor):
         #     mr, mrr, hit_1, hit_3, hit_10))
         return mr, mrr, hit_10, hit_3, hit_1
 
-    def test_triple_classification(self):
+    def test_triple_classification(self, data_type):
         y_true = []
         y_pred = []
         positive_samples, negative_samples = [], []
@@ -279,9 +276,9 @@ class Evaluator(Predictor):
         rel_threshold = self.get_best_threshold(positive_score, negative_score)
         total = len(positive_samples) + len(negative_samples)
         logging.info("* model:{} {}, test_triple_classification start, {}: {} ".format(
-            self.model_name, self.data_set, self.data_type, total))
+            self.model_name, self.data_set, data_type, total))
         for x_batch, y_batch in tqdm(
-                self.data_helper.batch_iter(data_type=self.data_type, batch_size=Config.batch_size),
+                self.data_helper.batch_iter(data_type=data_type, batch_size=Config.batch_size),
                 total=total / Config.batch_size,
                 desc="{} {} test_triple_classification".format(self.model_name, self.data_set)):
             prediction = self.predict(batch_h=x_batch[:, 0], batch_t=x_batch[:, 1], batch_r=x_batch[:, 2])

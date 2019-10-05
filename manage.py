@@ -11,8 +11,8 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # or any {'0', '1', '2'}
 
 def test(model_name, data_set):
     from ke.evaluator import Evaluator
-    evaluator = Evaluator(model_name, data_set, data_type="test")
-    mr, mrr, hit_10, hit_3, hit_1 = evaluator.test_link_prediction()
+    evaluator = Evaluator(model_name, data_set, load_model=True)
+    mr, mrr, hit_10, hit_3, hit_1 = evaluator.test_link_prediction(data_type="test")
     rank_metrics = "\n*model:{}, {}, mrr:{:.4f}, mr:{:.4f}, hit_10:{:.4f}, hit_3:{:.4f}, hit_1:{:.4f}\n".format(
         model_name, data_set, mrr, mr, hit_10, hit_3, hit_1)
     print(rank_metrics)
