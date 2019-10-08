@@ -19,7 +19,7 @@ def cos_sim(vector1, vector2):
     :param vector2:
     :return:
     """
-    vector_a = np.mat(vector1)
+    vector_a = np.mat(vector1)  # n,3,emb_dim
     vector_b = np.mat(vector2)
     num = float(vector_a * vector_b.T)
     denom = np.linalg.norm(vector_a) * np.linalg.norm(vector_b)
@@ -159,4 +159,3 @@ def tf_sim(query_triples_set, target_triples_set):
     overlap_set = query_triples_set & target_triples_set
     score = len(overlap_set) / len(query_triples_set) * 4
     return score
-

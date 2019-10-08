@@ -9,16 +9,16 @@ from ke.utils.logger import logging_config
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # or any {'0', '1', '2'}
 
 
-def test(model_name, data_set):
+def test(model_name, data_set, _tqdm=True):
     from ke.evaluator import Evaluator
     evaluator = Evaluator(model_name, data_set, load_model=True)
-    mr, mrr, hit_10, hit_3, hit_1 = evaluator.test_link_prediction(data_type="test")
-    rank_metrics = "\n*model:{}, {}, mrr:{:.4f}, mr:{:.4f}, hit_10:{:.4f}, hit_3:{:.4f}, hit_1:{:.4f}\n".format(
+    mr, mrr, hit_10, hit_3, hit_1 = evaluator.test_link_prediction(data_type="test", _tqdm=_tqdm)
+    rank_metrics = "\n*model:{}, {}, mrr:{:.3f}, mr:{:.3f}, hit_10:{:.3f}, hit_3:{:.3f}, hit_1:{:.3f}\n".format(
         model_name, data_set, mrr, mr, hit_10, hit_3, hit_1)
     print(rank_metrics)
     logging.info(rank_metrics)
     # accuracy, precision, recall, f1 = evaluator.test_triple_classification()
-    # _metrics = "\nmodel:{}, accuracy:{:.4f}, precision:{:.4f}, recall:{:.4f}, f1:{:.4f}\n".format(
+    # _metrics = "\nmodel:{}, accuracy:{:.3f}, precision:{:.3f}, recall:{:.3f}, f1:{:.3f}\n".format(
     #     model_name, accuracy, precision, recall, f1)
     # print(_metrics)
     # logging.info(_metrics)
@@ -29,8 +29,8 @@ def run_all(model_name, data_set, mode):
     logging_config(f"{model_name}_{data_set}_{mode}.log")
     all_models = models if model_name == "all" else [model_name]
     all_data_sets = data_sets if data_set == "all" else [data_set]
-    dataset2epoch_nums = {"lawdata": 1000, "lawdata_new": 100,
-                          "traffic": 10, "traffic_all": 10, "traffic_500": 500,
+    dataset2epoch_nums = {"lawdata": 500, "lawdata_new": 100,
+                          "traffic": 10, "traffic_all": 10, "traffic_500": 300,
                           "FB15K": 3, "WN18RR": 5}
     all_rank_metrics = defaultdict(list)
     for data_set in all_data_sets:
@@ -41,7 +41,8 @@ def run_all(model_name, data_set, mode):
                 #     num_epoch = num_epoch * 10
                 from ke.trainer import Trainer
                 Trainer(model_name=model_name, data_set=data_set, min_num_epoch=num_epoch).run()
-            rank_metrics = test(model_name, data_set)  # 训练结束测试
+            # 每个模型 训练结束测试
+            rank_metrics = test(model_name, data_set)
             all_rank_metrics[data_set].append([model_name] + list(rank_metrics))
     for dataset, _rank_metrics in all_rank_metrics.items():
         print()

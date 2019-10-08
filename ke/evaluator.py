@@ -61,7 +61,7 @@ class Predictor(object):
             r (int): relation id
             k (int): top k head entities
         Returns:
-            list: k possible head entity ids
+            list: k possible head entity ids order by score desc
         '''
         test_h = list(range(self.entity_nums))
         test_r = [r] * self.entity_nums
@@ -175,47 +175,56 @@ class Evaluator(Predictor):
             rel_threshold[r] = bestThresh
         return rel_threshold
 
-    def test(self, data_type):
+    def evaluate_metrics(self, triples_li, _tqdm=True):
+        """
+        :param triples_li: [(h,t,r),(h,t,r),...]
+        :param _tqdm: 进度条
+        :return:
+        """
+        # logging.info("*model:{} {}, test start, {}: {} ".format(self.model_name, self.data_set, data_type, total))
+        total = len(triples_li)
+        if _tqdm:
+            triples_li = tqdm(triples_li, desc=f"{self.model_name} {self.data_set} test_link_prediction")
+
         ranks = []
         ranks_left = []
         ranks_right = []
-        hits = {1: [], 3: [], 10: []}
-        hits_left = {1: [], 3: [], 10: []}
-        hits_right = {1: [], 3: [], 10: []}
-        total = len(self.data_helper.data[data_type])
-        logging.info("*model:{} {}, test start, {}: {} ".format(self.model_name, self.data_set, data_type, total))
-        for step, (h, t, r) in enumerate(tqdm(self.data_helper.data[data_type],
-                                              desc="{} Evaluator test".format(self.model_name))):
+        hits_N = [1, 3, 10]
+        hits = {k: [] for k in hits_N}
+        hits_left = {k: [] for k in hits_N}
+        hits_right = {k: [] for k in hits_N}
+
+        def get_hit_num(rank):
+            """
+            :param rank:
+            :return: {1:1,3:1,10:0}
+            """
+            hit_num = {k: 1 if rank <= k else 0 for k in hits_N}
+            return hit_num
+
+        for step, (h, t, r) in enumerate(triples_li):
+            # left_rank, right_rank = self.get_rank_score(h, t, r)
             pred_head_ids = self.predict_head_entity(t, r)
-            rank_left = pred_head_ids.index(h) + 1
+            left_rank = pred_head_ids.index(h) + 1
             pred_tail_ids = self.predict_tail_entity(h, r)
-            rank_right = pred_tail_ids.index(t) + 1
-            ranks.append(rank_left), ranks.append(rank_right)
-            ranks_left.append(rank_left)
-            ranks_right.append(rank_right)
+            right_rank = pred_tail_ids.index(t) + 1
+            ranks.append(left_rank), ranks.append(right_rank)
+            ranks_left.append(left_rank)
+            ranks_right.append(right_rank)
 
-            if rank_left <= 1:
-                hits[1].append(1)
-                hits_left[1].append(1)
-            elif rank_left <= 3:
-                hits[3].append(1)
-                hits_left[3].append(1)
-            elif rank_left <= 10:
-                hits[10].append(1)
-                hits_left[10].append(1)
+            for k, _hit_num in get_hit_num(left_rank).items():
+                hits_left[k].append(_hit_num)
+                hits[k].append(_hit_num)
+            for k, _hit_num in get_hit_num(right_rank).items():
+                hits_right[k].append(_hit_num)
+                hits[k].append(_hit_num)
 
-            if rank_right <= 1:
-                hits[1].append(1)
-                hits_right[1].append(1)
-            elif rank_right <= 3:
-                hits[3].append(1)
-                hits_right[1].append(1)
-            elif rank_right <= 10:
-                hits[10].append(1)
-                hits_right[1].append(1)
-            logging.info("*model:{} {}, test step: {}/{}".format(self.model_name, self.data_set, step, total))
-        for k in [1, 3, 10]:
-            hits[k] = np.mean(hits[k])
+            if _tqdm:
+                logging.info("*model:{} {}, test step: {}/{}".format(self.model_name, self.data_set, step, total))
+        # Hit@N
+        left_hits = {k: np.mean(hit_nums) for k, hit_nums in hits_left.items()}
+        right_hits = {k: np.mean(hit_nums) for k, hit_nums in hits_right.items()}
+        ave_hits = {k: np.mean(hit_nums) for k, hit_nums in hits.items()}
         # MR
         mr = np.mean(ranks)
         mr_left = np.mean(ranks_left)
@@ -226,11 +235,11 @@ class Evaluator(Predictor):
         mrr_right = np.mean(1. / np.array(ranks_right))
         metrics = {
             "left": {"MR": mr_left, "MRR": mrr_left,
-                     "Hit@10": hits_left[10], "Hit@3": hits_left[3], "Hit@1": hits_left[1]},
+                     "Hit@10": left_hits[10], "Hit@3": left_hits[3], "Hit@1": left_hits[1]},
             "right": {"MR": mr_right, "MRR": mrr_right,
-                      "Hit@10": hits_right[10], "Hit@3": hits_right[3], "Hit@1": hits_right[1]},
+                      "Hit@10": right_hits[10], "Hit@3": right_hits[3], "Hit@1": right_hits[1]},
             "ave": {"MR": mr, "MRR": mrr,
-                    "Hit@10": hits[10], "Hit@3": hits[3], "Hit@1": hits[1]}
+                    "Hit@10": ave_hits[10], "Hit@3": ave_hits[3], "Hit@1": ave_hits[1]}
         }
         return metrics
 
@@ -242,24 +251,11 @@ class Evaluator(Predictor):
         total = len(self.data_helper.data[data_type])
         logging.info("* model:{},{} test_link_prediction start, {}: {} ".format(
             self.model_name, self.data_set, data_type, total))
-        iter_data = self.data_helper.data[data_type]
-        if _tqdm:
-            iter_data = tqdm(iter_data, desc=f"{self.model_name} {self.data_set} test_link_prediction")
-        for step, (h, t, r) in enumerate(iter_data):
-            pred_head_ids = self.predict_head_entity(t, r)
-            _metrics = get_rank_hit_metrics(y_id=h, pred_ids=pred_head_ids)
-            metrics_li.append(_metrics)
-            pred_tail_ids = self.predict_tail_entity(h, r)
-            _metrics = get_rank_hit_metrics(y_id=t, pred_ids=pred_tail_ids)
-            metrics_li.append(_metrics)
-            logging.info("*model:{} {}, test_link_prediction step: {}/{}".format(self.model_name,
-                                                                                 self.data_set, step, total))
-        metrics = {}
-        for metric_name in metrics_li[0].keys():
-            metrics[metric_name] = sum([_metrics[metric_name] for _metrics in metrics_li]) / len(metrics_li)
-        mr, mrr, hit_10, hit_3, hit_1 = (metrics["MR"], metrics["MRR"],
-                                         metrics["HITS@10"], metrics["HITS@3"], metrics["HITS@1"])
-        # logging.info("mr:{:.4f}, mrr:{:.4f}, hit_1:{:.4f}, hit_3:{:.4f}, hit_10:{:.4f}".format(
+        triples_li = self.data_helper.data[data_type]
+        metrics = self.evaluate_metrics(triples_li, _tqdm=_tqdm)
+        mr, mrr = metrics["ave"]["MR"], metrics["ave"]["MRR"]
+        hit_10, hit_3, hit_1 = metrics["ave"]["Hit@10"], metrics["ave"]["Hit@3"], metrics["ave"]["Hit@1"]
+        # logging.info("mr:{:.3f}, mrr:{:.3f}, hit_1:{:.3f}, hit_3:{:.3f}, hit_10:{:.3f}".format(
         #     mr, mrr, hit_1, hit_3, hit_10))
         return mr, mrr, hit_10, hit_3, hit_1
 
@@ -298,7 +294,7 @@ class Evaluator(Predictor):
 def get_rank_hit_metrics(y_id, pred_ids):
     """
     :type y_id: int
-    :type pred_ids: list
+    :type pred_ids:list, k possible ids order by score desc
     """
     ranking = pred_ids.index(y_id) + 1
     _matrics = {

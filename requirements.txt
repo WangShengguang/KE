@@ -6,3 +6,4 @@ sklearn
 torch
 tqdm
 ipython
+tensorboard

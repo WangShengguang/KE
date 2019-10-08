@@ -43,7 +43,7 @@ class TrainConfig(object):
     # model save & load
     load_pretrain = True  # 断点续训
     max_to_keep = 1
-    save_step = 1000
+    check_step = 100
 
 
 class Evaluate(TrainConfig):
