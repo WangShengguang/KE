@@ -57,21 +57,23 @@ Link prediction aims to predict the missing h or t for a relation fact triple (h
 | Development Set | 104             | 98                | 8                   |
 | Test Set        | 103             | 98                | 8                   |
 
-各模型在此数据集上的表现
+各模型在此数据集上的表现（mac_mrr）
 
- | Model         | MR                | MRR       | hit@10 | hit@3  | hit@1  |
+|       Model   |       MR      |       MRR     |       hit@10  |       hit@3   |       hit@1|   
  | ------------- | ------ | -------- | ------ | ------ | ------ |
-|Analogy        |       3.4029  |       0.5755  |       0.9369  |       0.7233  |       0.3835|  
-|ComplEx        |       3.4515  |       0.6006  |       0.9320  |       0.7136  |       0.4320|  
-|DistMult       |       3.9709  |       0.5444  |       0.9029  |       0.6602  |       0.3641|  
-|HolE           |       4.3835  |       0.5328  |       0.8544  |       0.6602  |       0.3495|  
-|RESCAL         |       3.5485  |       0.5689  |       0.9223  |       0.7136  |       0.3738|
-|TransD         |       4.8883  |       0.3172  |       0.8835  |       0.5340  |       0.0097|  
-|TransE         |       4.8058  |       0.3170  |       0.9078  |       0.5291  |       0.0097|  
-|TransH         |       4.7379  |       0.3135  |       0.9078  |       0.5340  |       0.0097|  
-|TransR         |       3.9854  |       0.4511  |       0.9320  |       0.6408  |       0.1990|  
-|ConvKB         |       4.1602  |       0.5182  |       0.8981  |       0.6165  |       0.3398|  
-| TransformerKB | 3.2427 |0.5993|0.9369|0.7573|0.4078 |
+|Analogy        |       3.5146  |       0.5669  |       0.9272  |       0.7039  |       0.3786|  
+|ComplEx        |       3.4320  |       0.5897  |       0.9320  |       0.6990  |       0.4078|  
+|DistMult       |       3.8641  |       0.5659  |       0.9078  |       0.6845  |       0.3932|  
+|HolE           |       4.1019  |       0.5512  |       0.8981  |       0.6602  |       0.3738|  
+|RESCAL         |       3.4709  |       0.5633  |       0.9320  |       0.7282  |       0.3592|  
+|TransD         |       4.0340  |       0.3982  |       0.9223  |       0.6359  |       0.0922|  
+|TransE         |       4.1311  |       0.3745  |       0.9223  |       0.6456  |       0.0534|  
+|TransH         |       3.9660  |       0.3884  |       0.9369  |       0.6456  |       0.0728|  
+|TransR         |       3.3010  |       0.5718  |       0.9563  |       0.7282  |       0.3738|  
+|ConvKB         |       3.6990  |       0.5444  |       0.9272  |       0.6796  |       0.3495|  
+|TransformerKB  |       3.2087  |       0.6059  |       0.9563  |       0.7282  |       0.4223| 
+
+
 
 TransformerKB在各项指标均优于其余模型
 
@@ -86,23 +88,37 @@ TransformerKB在各项指标均优于其余模型
 | Development Set | 100             | 111                | 8                   |
 | Test Set        | 100             | 111                | 8                   |
 
-各模型在此数据集上的表现
+各模型在此数据集上的表现（mac_mrr）
 
- | Model         | MR    | MRR       | hit@10 | hit@3  | hit@1  |
+|       Model   |       MR      |       MRR     |       hit@10  |       hit@3   |       hit@1|   
  | ------------- | ------ | -------- | ------ | ------ | ------ |
-|Analogy        |       26.7300 |       0.1609  |       0.4100  |       0.1500  |       0.0600|  
-|ComplEx        |       28.9050 |       0.1393  |       0.3950  |       0.1250  |       0.0350|  
-|DistMult       |       29.3050 |       0.1396  |       0.3500  |       0.1400  |       0.0400|
-|HolE           |       28.6300 |       0.1820  |       0.4500  |       0.2300  |       0.0650|
-|RESCAL         |       31.4150 |       0.1129  |       0.3600  |       0.0750  |       0.0200|
-|TransD         |       29.5000 |       0.1290  |       0.3650  |       0.1200  |       0.0200|  
-|TransE         |       37.4650 |       0.1082  |       0.3150  |       0.1050  |       0.0200|  
-|TransH         |       32.1400 |       0.1168  |       0.3350  |       0.1050  |       0.0200|  
-|TransR         |       25.1200 |       0.1354  |       0.4300  |       0.1150  |       0.0200|  
-|ConvKB         |       23.2650 |       0.2038  |       0.5100  |       0.2200  |       0.0750|  
-|TransformerKB  |       22.6450 |       0.2446  |       0.5300  |       0.1350  |       0.0450|  
+|Analogy        |       35.0950 |       0.1212  |       0.3800  |       0.1100  |       0.0150|  
+|ComplEx        |       33.1250 |       0.1066  |       0.3400  |       0.0700  |       0.0100|  
+|DistMult       |       35.0150 |       0.1122  |       0.3750  |       0.1200  |       0.0050|  
+|HolE           |       37.2050 |       0.1414  |       0.3750  |       0.1450  |       0.0400|  
+|RESCAL         |       33.8000 |       0.1403  |       0.3800  |       0.1400  |       0.0300|  
+|TransD         |       27.8650 |       0.1436  |       0.4100  |       0.1450  |       0.0300|  
+|TransE         |       28.4750 |       0.1428  |       0.4050  |       0.1500  |       0.0300|  
+|TransH         |       29.8150 |       0.1377  |       0.3850  |       0.1250  |       0.0300|  
+|TransR         |       25.2600 |       0.1438  |       0.4250  |       0.1250  |       0.0250|  
+|ConvKB         |       28.1200 |       0.2330  |       0.4450  |       0.2500  |       0.1350|  
+|TransformerKB  |       22.9350 |       0.1682  |       0.4400  |       0.1700  |       0.0500|
 
 TransformerKB在MRR指标上表现最好，其余各指标稍差，分析可能是因为三元组抽取过程中存在较多错误，造成输入噪音
+
+We separate models into two sets, the first are ConvKB, TransformerKB, TransX (TransE, TransH, TransR, TransD) and the second are Analogy, ComplEx, DistMult, HolE, RESCAL. On the training data, the performance of TransX and ConvKB is less on MR, HRR, and Hit@10. But on the random pick data, their performance is better than the other models.  That we analysis the fluctuation is because the dataset is a little bit small, thus the random bias has affected the models. The other reason is that the training lawsuit data is much similar to the labeled data, thus intuition we should get more accurate triplets than the random pick lawsuit data. Even though, the TransX series models still have the same order on both datasets, e.g. on the performance of MR they retain a relationship of TransR > TransH > TransE > TransD. On the other hand, due to the difference in the implementation detail of the second set models, their performance order is much more variant on both datasets. As we can see the performance of the TransX series model is more stable as a better baseline. There is a model in which performance is much closer to our TransformerKB is the ConvKB model. In comparison, the performance of TransformerKB is higher than ConvKB four times and two times worse. ConvKB has once in the last, shows that its stability is less. TransformerKB has performed four times the best and twice the second, and all better than TransX series models, we can see TransformerKB has better stability and precision on this task.
+
+
+---
+
+TransformerKB does better than the closely related model ConvKB on train lawsuit data where TransformerKB gains significant improvements of 0.92 in MR, 0.08 in MRR and 0.04 in Hit@10. Except Hit@10 is a bit lower than ComlEx, our TransformerKB model has a higher score on MR and Hit@N than all other baseline model. We believe that is because the self-attention mechanism captures more connections between entities and relations.
+
+On the random data, TransformerKB only perform the best on MR. It is possibly because the triplet extraction progress exist some invalid triplets and that cause the noise.
+
+On both data sets, the TransX series models performed relatively well and were stable.TransE, TransH and TransR all has better MR, Hit@10 on train lawsuit data than ConvKB. We confirmed that the TranX model is a strong baseline model.
+
+TransformerKB exceeds the TransX series models for all metrics on both datasets. Most of the time, TransformerKB is similar or better than ConvKB. It shows that TransformerKB has better performance on overall prediction and more stable than ConvKB. TransformerKB can be seen as a promotion combined with TransE and ConvKB.
+
 
 
 # tips
@@ -120,12 +136,4 @@ TransformerKB在MRR指标上表现最好，其余各指标稍差，分析可能�
 ## Reference
 - [Awesome Knowledge Graph Embedding Approaches](https://gist.github.com/mommi84/07f7c044fa18aaaa7b5133230207d8d4)
 
-
-
-
-
----
-
-|       Model   |       MR      |       MRR     |       hit@10  |       hit@3   |       hit@1|   |Analogy        |       45.9100 |       0.0704  |       0.2050  |       0.0300  |       0.0050|  |ComplEx        |       50.6650 |       0.0582  |       0.1650  |       0.0100  |       0.0100|  |DistMult       |       43.8200 |       0.0876  |       0.2650  |       0.0600  |       0.0150|
-|HolE           |       32.9700 |       0.1653  |       0.3200  |       0.1550  |       0.0800|  |RESCAL         |       34.0000 |       0.1173  |       0.3050  |       0.0900  |       0.0350|  |TransD         |       31.2500 |       0.1198  |       0.3400  |       0.0900  |       0.0300|  |TransE         |       54.0050 |       0.0659  |       0.1100  |       0.0450  |       0.0300|  |TransH         |       47.1550 |       0.0792  |       0.1350  |       0.0600  |       0.0300|  |TransR         |       38.0600 |       0.1016  |       0.2350  |       0.0800  |       0.0300|  |ConvKB         |       25.5650 |       0.1879  |       0.4300  |       0.2100  |       0.0800|  |TransformerKB  |       22.0300 |       0.1784  |       0.4550  |       0.1600  |       0.0650|
 

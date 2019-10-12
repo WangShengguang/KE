@@ -30,15 +30,15 @@ def run_all(model_name, data_set, mode):
     all_models = models if model_name == "all" else [model_name]
     all_data_sets = data_sets if data_set == "all" else [data_set]
     dataset2epoch_nums = {"lawdata": 500, "lawdata_new": 100,
-                          "traffic": 10, "traffic_all": 10, "traffic_500": 300,
+                          "traffic": 10, "traffic_all": 10, "traffic_500": 500,
                           "FB15K": 3, "WN18RR": 5}
     all_rank_metrics = defaultdict(list)
     for data_set in all_data_sets:
         num_epoch = dataset2epoch_nums[data_set]
         for model_name in all_models:
             if mode == "train":
-                # if model_name == "TransformerKB":
-                #     num_epoch = num_epoch * 10
+                if model_name in ["TransformerKB", "TransR"]:
+                    num_epoch *= 4
                 from ke.trainer import Trainer
                 Trainer(model_name=model_name, data_set=data_set, min_num_epoch=num_epoch).run()
             # 每个模型 训练结束测试
@@ -55,7 +55,7 @@ def run_all(model_name, data_set, mode):
             line = "\t|\t".join([_model_name] + _metrics)
             line = "|" + line + "|"
             lines.append(line)
-        print("\n----{}------\n".format(data_set))
+        print("\n----{}------\n".format(dataset))
         print("\n".join([title] + lines))
         print()
 
@@ -78,9 +78,15 @@ models = ["Analogy", "ComplEx", "DistMult", "HolE", "RESCAL",
           "TransD", "TransE", "TransH", "TransR",
           "ConvKB", "TransformerKB"]
 
-data_sets = ["lawdata", "lawdata_new",
-             "traffic", "traffic_all", "traffic_500",
-             "FB15K", "WN18RR"]
+data_sets = [
+    "traffic_500",
+
+    "lawdata",
+    # "lawdata_new",
+    # "traffic", "traffic_all",
+    # "traffic_500",
+    # "FB15K", "WN18RR"
+]
 
 
 def main():

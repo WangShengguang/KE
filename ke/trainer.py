@@ -6,7 +6,7 @@ from tqdm import trange
 
 from config import Config
 from ke.data_helper import DataHelper
-from ke.evaluator import Evaluator, get_rank_hit_metrics
+from ke.evaluator import Evaluator
 from ke.models import (Analogy, ComplEx, DistMult, HolE, RESCAL,
                        TransD, TransE, TransH, TransR,
                        ConvKB, TransformerKB)
@@ -79,7 +79,8 @@ class Trainer(object):
             per_epoch_step = len(self.data_helper.data["train"]) // Config.batch_size // 2  # 正负样本
             global_step = sess.run(model.global_step)
             start_epoch_num = global_step // per_epoch_step  # 已经训练过多少epoch
-            for epoch_num in trange(1, max(self.min_num_epoch, Config.max_epoch_nums) + 1,
+            print("start_epoch_num: {}".format(start_epoch_num))
+            for epoch_num in trange(1, min(self.min_num_epoch, Config.max_epoch_nums) + 1,
                                     desc="{} {} train epoch ".format(self.model_name, self.data_set)):
                 if epoch_num <= start_epoch_num:
                     continue
@@ -91,17 +92,17 @@ class Trainer(object):
                         feed_dict={model.input_x: x_batch,
                                    model.input_y: y_batch,
                                    model.dropout_keep_prob: Config.dropout_keep_prob})
-                    if global_step % Config.check_step == 0:
-                        self.evaluator.set_model(sess, model)
-                        metrics = self.evaluator.evaluate_metrics(x_batch.tolist(), _tqdm=False)
-                        mr, mrr = metrics["ave"]["MR"], metrics["ave"]["MRR"]
-                        hit_10, hit_3, hit_1 = metrics["ave"]["Hit@10"], metrics["ave"]["Hit@3"], metrics["ave"][
-                            "Hit@1"]
-                        logging.info("{} {} train epoch_num: {}, global_step: {}, loss: {:.3f}, "
-                                     "mr: {:.3f}, mrr: {:.3f}, Hit@10: {:.3f}, Hit@3: {:.3f}, Hit@1: {:.3f}".format(
-                            self.data_set, self.model_name, epoch_num, global_step, loss,
-                            mr, mrr, hit_10, hit_3, hit_1))
-                        # logging.info(" step:{}, loss: {:.3f}".format(global_step, loss))
+                    # if global_step % Config.check_step == 0: # train step metrics
+                    #     self.evaluator.set_model(sess, model)
+                    #     metrics = self.evaluator.evaluate_metrics(x_batch.tolist(), _tqdm=False)
+                    #     mr, mrr = metrics["ave"]["MR"], metrics["ave"]["MRR"]
+                    #     hit_10, hit_3, hit_1 = metrics["ave"]["Hit@10"], metrics["ave"]["Hit@3"], metrics["ave"][
+                    #         "Hit@1"]
+                    #     logging.info("{} {} train epoch_num: {}, global_step: {}, loss: {:.3f}, "
+                    #                  "mr: {:.3f}, mrr: {:.3f}, Hit@10: {:.3f}, Hit@3: {:.3f}, Hit@1: {:.3f}".format(
+                    #         self.data_set, self.model_name, epoch_num, global_step, loss,
+                    #         mr, mrr, hit_10, hit_3, hit_1))
+                    # logging.info(" step:{}, loss: {:.3f}".format(global_step, loss))
                     # predict = sess.run(model.predict, feed_dict={model.input_x: x_batch, model.input_y: y_batch})
                     losses.append(loss)
                 self.check_loss_save(sess, model, global_step, loss)

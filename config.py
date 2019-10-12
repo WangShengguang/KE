@@ -35,7 +35,7 @@ class TrainConfig(object):
     rel_emb_dim = 128
     hidden_dim = 128
     # early stop
-    max_epoch_nums = 100
+    max_epoch_nums = 2000
     min_epoch_nums = 5
     # lawdata 10000
     # patience = 0.0001
@@ -48,8 +48,8 @@ class TrainConfig(object):
 
 class Evaluate(TrainConfig):
     # load_model_mode = "min_loss"
-    load_model_mode = "max_step"
-    # load_model_mode = "max_acc"  # mrr
+    # load_model_mode = "max_step"
+    load_model_mode = "max_acc"  # mrr
 
 
 class TfConfig(object):
