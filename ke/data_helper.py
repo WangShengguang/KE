@@ -46,9 +46,9 @@ class DataHelper(object):
         lines = read_data("entity2id.txt")
         self.entity2id = {entity: int(id) for line in lines for entity, id in [line.split(" ")]}
         # 这两个模型使用同一个embedding 矩阵，所以需要统一编码，不能分开编码
-        rel_start_size = len(self.entity2id) if self.model_name in ["ConvKB", "TransformerKB"] else 0
+        # rel_start_id = len(self.entity2id) if self.model_name in ["ConvKB", "TransformerKB"] else 0
         lines = read_data("relation2id.txt")
-        self.relation2id = {relation: rel_start_size + int(id) for line in lines for relation, id in [line.split(" ")]}
+        self.relation2id = {relation: int(_id) for line in lines for relation, _id in [line.split(" ")]}
 
     def init_negative_samples(self, positive_samples):
         if not self.inited_negative:

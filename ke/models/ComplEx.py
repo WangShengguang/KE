@@ -1,4 +1,3 @@
-# coding:utf-8
 import tensorflow as tf
 
 from ._BaseModel import TransX
@@ -10,10 +9,10 @@ class ComplEx(TransX):
     It is proved that HolE is subsumed by ComplEx as a special case.
     '''
 
-    def embedding_def(self, num_ent_tags, num_rel_tags, ent_emb_dim, rel_emb_dim):
-        self.ent_embeddings_2 = tf.get_variable(name="ent_embeddings_2", shape=[num_ent_tags, ent_emb_dim],
+    def embedding_def(self):
+        self.ent_embeddings_2 = tf.get_variable(name="ent_embeddings_2", shape=[self.num_ent_tags, self.ent_emb_dim],
                                                 initializer=tf.contrib.layers.xavier_initializer(uniform=False))
-        self.rel_embeddings_2 = tf.get_variable(name="rel_embeddings_2", shape=[num_rel_tags, rel_emb_dim],
+        self.rel_embeddings_2 = tf.get_variable(name="rel_embeddings_2", shape=[self.num_rel_tags, self.rel_emb_dim],
                                                 initializer=tf.contrib.layers.xavier_initializer(uniform=False))
 
     def _calc(self, h_embed_1, h_embed_2, t_embed_1, t_embed_2, r_embed_1, r_embed_2, name=None):

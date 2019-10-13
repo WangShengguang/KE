@@ -1,7 +1,7 @@
-import abc
+from abc import ABC, abstractmethod
 
 import tensorflow as tf
-from tensorflow import Tensor
+from tensorflow import Tensor, Operation
 
 from config import Config
 from ke.utils.saver import Saver
@@ -9,7 +9,7 @@ from ke.utils.saver import Saver
 __all__ = ["Model"]
 
 
-class Model(metaclass=abc.ABCMeta):
+class Model(ABC):
     """  网络构建必须在 __network_build函数调用的几个函数中实现
         实现 model.save 和 model.load
         https://zhuanlan.zhihu.com/p/68899384
@@ -17,7 +17,7 @@ class Model(metaclass=abc.ABCMeta):
     """
 
     def __init__(self, data_set=None, num_ent_tags=None, num_rel_tags=None,
-                 ent_emb_dim=Config.ent_emb_dim, rel_emb_dim=Config.rel_emb_dim,
+                 ent_emb_dim=Config.ent_emb_dim, rel_emb_dim=Config.rel_emb_dim, common_emb_dim=Config.common_emb_dim,
                  sequence_length=Config.sequence_len, batch_size=Config.batch_size, num_classes=Config.num_classes,
                  name=None):
         """ 为统一训练方式，几个属性张量必须在子类实现
@@ -34,6 +34,7 @@ class Model(metaclass=abc.ABCMeta):
         self.num_rel_tags = num_rel_tags
         self.ent_emb_dim = ent_emb_dim
         self.rel_emb_dim = rel_emb_dim
+        self.common_emb_dim = common_emb_dim
         self.sequence_length = sequence_length
         self.batch_size = batch_size
         self.num_classes = num_classes
@@ -49,24 +50,39 @@ class Model(metaclass=abc.ABCMeta):
             input_x: [[10630,1715,4],[1422,18765,4]] h,t,r
         """
         self.input_def()  # placeholder
-        self.embedding_def(self.num_ent_tags, self.num_rel_tags, self.ent_emb_dim, self.rel_emb_dim)  # weights
+        self.embedding_def()  # weights
         self.forward()  # forward propagate
         self.predict_def()
         self.backward()  # backward propagate
         self.saver = Saver(data_set=self.data_set, model_name=self.name)
-        assert isinstance(self.loss, Tensor), "please set attr loss for backforward"
+        assert isinstance(self.loss, Tensor), "please set attr loss for backward"
         assert isinstance(self.predict, Tensor), "please set attr predict for predict"
-        assert isinstance(self.train_op, Tensor), "please set attr train_op for backward"
+        assert isinstance(self.train_op, Operation), "please set attr train_op for backward"
         assert self.predict.name == "predict:0", "predict variable must be set name 'predict'"
         # self.predict = tf.add(a, b, name="predict")
 
     def input_def(self):
-        self.hrt_input_x = tf.stack([self.h, self.r, self.t], axis=1)  # 交换了位置 htr->hrt
+        """
+        https://stackoverflow.com/questions/44576167/force-child-class-to-override-parents-methods
+        https://stackoverflow.com/questions/3948873/prevent-function-overriding-in-python
+        """
+        # self.hrt_input_x = tf.stack([self.h, self.r, self.t], axis=1)  # 交换了位置 htr->hrt
+        # self.common_embeddings = tf.get_variable([self.ent_embeddings, self.rel_embeddings], axix=0,
+        #                                       name="common_embeddings")
+        self.ent_embeddings = tf.get_variable(name="ent_embeddings", shape=[self.num_ent_tags, self.common_emb_dim],
+                                              initializer=tf.contrib.layers.xavier_initializer(uniform=True))
+        self.rel_embeddings = tf.get_variable(name="rel_embeddings", shape=[self.num_rel_tags, self.common_emb_dim],
+                                              initializer=tf.contrib.layers.xavier_initializer(uniform=True))
+        self.h_embed = tf.nn.embedding_lookup(self.ent_embeddings, self.h)
+        self.t_embed = tf.nn.embedding_lookup(self.ent_embeddings, self.t)
+        self.r_embed = tf.nn.embedding_lookup(self.rel_embeddings, self.r)
 
-    def embedding_def(self, num_ent_tags, num_rel_tags, ent_emb_dim, rel_emb_dim):
+        self.hrt_embed = tf.stack([self.h_embed, self.r_embed, self.t_embed], axis=1)
+
+    def embedding_def(self):
         pass
 
-    @abc.abstractmethod
+    @abstractmethod
     def forward(self):
         self.loss = None
         self.predict = None
@@ -97,9 +113,9 @@ class TransX(Model):
         self.neg_h, self.neg_t, self.neg_r = tf.unstack(negative_samples, axis=1)
         # embedding def
         self.ent_embeddings = tf.get_variable(name="ent_embeddings", shape=[self.num_ent_tags, self.ent_emb_dim],
-                                              initializer=tf.contrib.layers.xavier_initializer(uniform=False))
+                                              initializer=tf.contrib.layers.xavier_initializer(uniform=True))
         self.rel_embeddings = tf.get_variable(name="rel_embeddings", shape=[self.num_rel_tags, self.rel_emb_dim],
-                                              initializer=tf.contrib.layers.xavier_initializer(uniform=False))
+                                              initializer=tf.contrib.layers.xavier_initializer(uniform=True))
         self.pos_h_embed = tf.nn.embedding_lookup(self.ent_embeddings, self.pos_h)
         self.pos_t_embed = tf.nn.embedding_lookup(self.ent_embeddings, self.pos_t)
         self.pos_r_embed = tf.nn.embedding_lookup(self.rel_embeddings, self.pos_r)

@@ -19,8 +19,8 @@ class TransH(TransX):
         r = tf.nn.l2_normalize(r, -1)
         return abs(h + r - t)
 
-    def embedding_def(self, num_ent_tags, num_rel_tags, ent_emb_dim, rel_emb_dim):
-        self.normal_vectors = tf.get_variable(name="normal_vectors", shape=[num_rel_tags, rel_emb_dim],
+    def embedding_def(self):
+        self.normal_vectors = tf.get_variable(name="normal_vectors", shape=[self.num_rel_tags, self.rel_emb_dim],
                                               initializer=tf.contrib.layers.xavier_initializer(uniform=False))
 
     def forward(self):

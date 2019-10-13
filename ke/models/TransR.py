@@ -18,9 +18,9 @@ class TransR(TransX):
         r = tf.nn.l2_normalize(r, -1)
         return abs(h + r - t)
 
-    def embedding_def(self, num_ent_tags, num_rel_tags, ent_emb_dim, rel_emb_dim):
+    def embedding_def(self):
         self.transfer_matrix = tf.get_variable(name="transfer_matrix",
-                                               shape=[num_rel_tags, ent_emb_dim * rel_emb_dim],
+                                               shape=[self.num_rel_tags, self.ent_emb_dim * self.rel_emb_dim],
                                                initializer=tf.contrib.layers.xavier_initializer(uniform=False))
 
     def forward(self):

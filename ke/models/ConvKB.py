@@ -1,27 +1,18 @@
-import math
-
 import tensorflow as tf
+
 from ._BaseModel import Model
 
 
 class ConvKB(Model):
     def __init__(self, data_set, num_ent_tags, num_rel_tags):
         super().__init__(data_set, num_ent_tags, num_rel_tags)
-        self.embedding_dim = self.ent_emb_dim
         self.filter_sizes = [1]
         self.num_filters = 500
-        self.vocab_size = num_ent_tags + num_rel_tags
         self.useConstantInit = False
-
-    def embedding_def(self, num_ent_tags, num_rel_tags, ent_emb_dim, rel_emb_dim):
-        self.W = tf.Variable(tf.random_uniform([num_ent_tags + num_rel_tags, self.embedding_dim],
-                                               -math.sqrt(1.0 / self.embedding_dim),
-                                               math.sqrt(1.0 / self.embedding_dim), seed=1234), name="ConvKB-W")
 
     def forward(self):
         l2_loss = tf.constant(0.0)
-        self.embedded_chars = tf.nn.embedding_lookup(self.W, self.hrt_input_x)
-        self.embedded_chars_expanded = tf.expand_dims(self.embedded_chars, -1)
+        self.embedded_chars_expanded = tf.expand_dims(self.hrt_embed, -1)
         # Create a convolution + maxpool layer for each filter size
         pooled_outputs = []
         for i, filter_size in enumerate(self.filter_sizes):
@@ -47,7 +38,7 @@ class ConvKB(Model):
 
         # Combine all the pooled features
         self.h_pool = tf.concat(pooled_outputs, 2)
-        total_dims = (self.embedding_dim * len(self.filter_sizes) - sum(self.filter_sizes) + len(
+        total_dims = (self.common_emb_dim * len(self.filter_sizes) - sum(self.filter_sizes) + len(
             self.filter_sizes)) * self.num_filters
         self.h_pool_flat = tf.reshape(self.h_pool, [-1, total_dims])
 

@@ -21,16 +21,13 @@ class EmbeddingExporter(object):
         with graph.as_default(), sess.as_default():  # self 无法load TransformerKB
             model_path = Saver(data_set=self.data_set, model_name=self.model_name).restore_model(sess)
             print("* load model path :{}".format(model_path))
-            if self.model_name == "ConvKB":
+            if self.model_name == "RESCAL":
                 # 无需拆分 ent_emb和rel_emb，后续SimRank推荐 ent2id rel2id从datahelper获得，在其中处理之即可
-                ent_embeddings = graph.get_operation_by_name("ConvKB-W").outputs[0]
-                rel_embeddings = ent_embeddings
-            elif self.model_name == "TransformerKB":
-                ent_embeddings = graph.get_operation_by_name("Tramsformer-W").outputs[0]
-                rel_embeddings = ent_embeddings
+                rel_embeddings = graph.get_operation_by_name("rel_matrices").outputs[0]
             else:
-                ent_embeddings = graph.get_operation_by_name("ent_embeddings").outputs[0]
                 rel_embeddings = graph.get_operation_by_name("rel_embeddings").outputs[0]
+            ent_embeddings = graph.get_operation_by_name("ent_embeddings").outputs[0]
+
             ent_embeddings = sess.run(ent_embeddings)
             rel_embeddings = sess.run(rel_embeddings)
         with open(self.embedding_json_path, "w", encoding="utf-8") as f:

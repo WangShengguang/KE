@@ -29,16 +29,16 @@ def run_all(model_name, data_set, mode):
     logging_config(f"{model_name}_{data_set}_{mode}.log")
     all_models = models if model_name == "all" else [model_name]
     all_data_sets = data_sets if data_set == "all" else [data_set]
-    dataset2epoch_nums = {"lawdata": 500, "lawdata_new": 100,
-                          "traffic": 10, "traffic_all": 10, "traffic_500": 500,
+    dataset2epoch_nums = {"lawdata": 1000, "lawdata_new": 1000,
+                          "traffic": 10, "traffic_all": 10, "traffic_500": 1000,
                           "FB15K": 3, "WN18RR": 5}
     all_rank_metrics = defaultdict(list)
     for data_set in all_data_sets:
         num_epoch = dataset2epoch_nums[data_set]
         for model_name in all_models:
             if mode == "train":
-                if model_name in ["TransformerKB", "TransR"]:
-                    num_epoch *= 4
+                # if model_name in ["TransformerKB", "TransR"]:
+                #     num_epoch *= 4
                 from ke.trainer import Trainer
                 Trainer(model_name=model_name, data_set=data_set, min_num_epoch=num_epoch).run()
             # 每个模型 训练结束测试
@@ -51,7 +51,7 @@ def run_all(model_name, data_set, mode):
         lines = []
         for _rank in _rank_metrics:
             _model_name = _rank[0] + '\t' if len(_rank[0]) < 7 else _rank[0]
-            _metrics = [f"{v:.4f}" for v in _rank[1:]]
+            _metrics = [f"{v:.3f}" for v in _rank[1:]]
             line = "\t|\t".join([_model_name] + _metrics)
             line = "|" + line + "|"
             lines.append(line)
@@ -80,12 +80,11 @@ models = ["Analogy", "ComplEx", "DistMult", "HolE", "RESCAL",
 
 data_sets = [
     "traffic_500",
-
     "lawdata",
-    # "lawdata_new",
+    "lawdata_new",
     # "traffic", "traffic_all",
     # "traffic_500",
-    # "FB15K", "WN18RR"
+    "FB15K", "WN18RR"
 ]
 
 

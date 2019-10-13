@@ -31,9 +31,9 @@ class TrainConfig(object):
     dropout_keep_prob = 0.8
     margin = 1.0
     #
-    ent_emb_dim = 128
-    rel_emb_dim = 128
-    hidden_dim = 128
+    common_emb_dim = 128
+    ent_emb_dim = common_emb_dim
+    rel_emb_dim = common_emb_dim
     # early stop
     max_epoch_nums = 2000
     min_epoch_nums = 5

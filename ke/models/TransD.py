@@ -32,10 +32,10 @@ class TransD(TransX):
         r = tf.nn.l2_normalize(r, -1)
         return abs(h + r - t)
 
-    def embedding_def(self, num_ent_tags, num_rel_tags, ent_emb_dim, rel_emb_dim):
-        self.ent_transfer = tf.get_variable(name="ent_transfer", shape=[num_ent_tags, ent_emb_dim],
+    def embedding_def(self):
+        self.ent_transfer = tf.get_variable(name="ent_transfer", shape=[self.num_ent_tags, self.ent_emb_dim],
                                             initializer=tf.contrib.layers.xavier_initializer(uniform=False))
-        self.rel_transfer = tf.get_variable(name="rel_transfer", shape=[num_rel_tags, rel_emb_dim],
+        self.rel_transfer = tf.get_variable(name="rel_transfer", shape=[self.num_rel_tags, self.rel_emb_dim],
                                             initializer=tf.contrib.layers.xavier_initializer(uniform=False))
 
     def forward(self):
